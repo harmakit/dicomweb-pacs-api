@@ -15,8 +15,7 @@ import (
 type ctxKey int
 
 const (
-	ctxAccount ctxKey = iota
-	ctxProfile
+	ctxStudy ctxKey = iota
 )
 
 // API provides application resources and handlers.
@@ -28,13 +27,9 @@ type API struct {
 func NewAPI(db *pg.DB) (*API, error) {
 	studyStore := database.NewStudyStore(db)
 	study := NewStudyResource(studyStore)
-	//
-	//profileStore := database.NewProfileStore(db)
-	//profile := NewProfileResource(profileStore)
 
 	api := &API{
 		Study: study,
-		//Profile: profile,
 	}
 	return api, nil
 }
@@ -43,8 +38,7 @@ func NewAPI(db *pg.DB) (*API, error) {
 func (a *API) Router() *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Mount("/account", a.Account.router())
-	r.Mount("/profile", a.Profile.router())
+	r.Mount("/study", a.Study.router())
 
 	return r
 }

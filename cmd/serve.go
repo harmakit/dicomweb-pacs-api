@@ -31,8 +31,8 @@ func init() {
 
 	viper.SetDefault("auth_login_url", "http://localhost:3000/login")
 	viper.SetDefault("auth_login_token_length", 8)
-	viper.SetDefault("auth_login_token_expiry", "11m")
-	viper.SetDefault("auth_jwt_secret", "random")
+	viper.SetDefault("auth_login_token_expiry", "8640h") // todo: revert to short-term token
+	viper.SetDefault("auth_jwt_secret", "ta4/p1*XmD1@3q_={SK4Q'+2Viii9NsEuy,IuCeq/?YeO\"l]xB4~Sb8@1@kur;$")
 	viper.SetDefault("auth_jwt_expiry", "15m")
 	viper.SetDefault("auth_jwt_refresh_expiry", "1h")
 

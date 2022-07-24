@@ -3,10 +3,6 @@ package api
 
 import (
 	"dicom-store-api/api/wado"
-	"net/http"
-	"os"
-	"path"
-	"strings"
 	"time"
 
 	"dicom-store-api/api/admin"
@@ -86,13 +82,6 @@ func New(enableCORS bool) (*chi.Mux, error) {
 		r.Mount("/wado", wadoAPI.Router())
 	})
 
-	r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("pong"))
-	})
-
-	client := "./public"
-	r.Get("/*", SPAHandler(client))
-
 	return r, nil
 }
 
@@ -109,23 +98,4 @@ func corsConfig() *cors.Cors {
 		AllowCredentials: true,
 		MaxAge:           86400, // Maximum value not ignored by any of major browsers
 	})
-}
-
-// SPAHandler serves the public Single Page Application.
-func SPAHandler(publicDir string) http.HandlerFunc {
-	handler := http.FileServer(http.Dir(publicDir))
-	return func(w http.ResponseWriter, r *http.Request) {
-		indexPage := path.Join(publicDir, "index.html")
-		serviceWorker := path.Join(publicDir, "service-worker.js")
-
-		requestedAsset := path.Join(publicDir, r.URL.Path)
-		if strings.Contains(requestedAsset, "service-worker.js") {
-			requestedAsset = serviceWorker
-		}
-		if _, err := os.Stat(requestedAsset); err != nil {
-			http.ServeFile(w, r, indexPage)
-			return
-		}
-		handler.ServeHTTP(w, r)
-	}
 }

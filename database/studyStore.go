@@ -17,18 +17,27 @@ func NewStudyStore(db *pg.DB) *StudyStore {
 	}
 }
 
+func (s *StudyStore) FindByPatient(patient string) ([]*models.Study, error) {
+	var studies []*models.Study
+	err := s.db.Model(&studies).
+		Where("patient = ?", patient).
+		Select()
+
+	return studies, err
+}
+
 // Get gets a study by study ID.
 func (s *StudyStore) Get(studyID int) (*models.Study, error) {
-	p := models.Study{StudyId: studyID}
-	_, err := s.db.Model(&p).
-		Where("study_id = ?", studyID).
-		SelectOrInsert()
+	study := models.Study{ID: studyID}
+	err := s.db.Model(&study).
+		Where("id = ?", studyID).
+		Select()
 
-	return &p, err
+	return &study, err
 }
 
 // Update updates study.
-func (s *StudyStore) Update(p *models.Study) error {
-	err := s.db.Update(p)
+func (s *StudyStore) Update(study *models.Study) error {
+	err := s.db.Update(study)
 	return err
 }

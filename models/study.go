@@ -1,4 +1,3 @@
-// Package models contains application specific entities.
 package models
 
 import (
@@ -9,31 +8,31 @@ import (
 	"github.com/go-pg/pg/orm"
 )
 
-// Profile holds specific application settings linked to an Account.
 type Study struct {
+	TableName struct{} `sql:"study"`
+
 	ID        int       `json:"-"`
-	AccountID int       `json:"-"`
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 
-	Theme string `json:"theme,omitempty"`
+	Patient string `json:"patient,omitempty"`
 }
 
 // BeforeInsert hook executed before database insert operation.
-func (p *Profile) BeforeInsert(db orm.DB) error {
+func (p *Study) BeforeInsert(db orm.DB) error {
 	p.UpdatedAt = time.Now()
 	return nil
 }
 
 // BeforeUpdate hook executed before database update operation.
-func (p *Profile) BeforeUpdate(db orm.DB) error {
+func (p *Study) BeforeUpdate(db orm.DB) error {
 	p.UpdatedAt = time.Now()
 	return p.Validate()
 }
 
-// Validate validates Profile struct and returns validation errors.
-func (p *Profile) Validate() error {
+// Validate validates Study struct and returns validation errors.
+func (p *Study) Validate() error {
 
 	return validation.ValidateStruct(p,
-		validation.Field(&p.Theme, validation.Required, validation.In("default", "dark")),
+		validation.Field(&p.Patient, validation.Required, validation.In("patient1", "patient2")),
 	)
 }
