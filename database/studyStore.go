@@ -18,6 +18,10 @@ func NewStudyStore(db *pg.DB) *StudyStore {
 }
 
 func (s *StudyStore) FindByPatient(patient string) ([]*models.Study, error) {
+	//sTag := models.Study{}.GetObjectIdFieldTag()
+	//info, _ := tag.Find(sTag)
+	//info.Name
+
 	var studies []*models.Study
 	err := s.db.Model(&studies).
 		Where("patient = ?", patient).

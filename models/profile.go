@@ -13,6 +13,7 @@ import (
 type Profile struct {
 	ID        int       `json:"-"`
 	AccountID int       `json:"-"`
+	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 
 	Theme string `json:"theme,omitempty"`
@@ -20,7 +21,9 @@ type Profile struct {
 
 // BeforeInsert hook executed before database insert operation.
 func (p *Profile) BeforeInsert(db orm.DB) error {
-	p.UpdatedAt = time.Now()
+	now := time.Now()
+	p.CreatedAt = now
+	p.UpdatedAt = now
 	return nil
 }
 

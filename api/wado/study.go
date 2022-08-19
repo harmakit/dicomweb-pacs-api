@@ -88,6 +88,15 @@ func newStudiesResponse(s []*models.Study) *studiesResponse {
 }
 
 func (rs *StudyResource) get(w http.ResponseWriter, r *http.Request) {
+	//dataset, _ := dicom.ParseFile("testdata/1.dcm", nil)
+	//
+	//// Dataset will nicely print the DICOM dataset data out of the box.
+	//fmt.Println(dataset)
+	//
+	//// Dataset is also JSON serializable out of the box.
+	//j, _ := json.Marshal(dataset)
+	//fmt.Println(j)
+
 	studies, err := rs.Store.FindByPatient("patient1")
 	if err != nil {
 		render.Render(w, r, ErrInternalServerError)

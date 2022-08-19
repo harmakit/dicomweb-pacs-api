@@ -66,6 +66,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/shirou/gopsutil/v3 v3.22.4 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
+	github.com/suyashkumar/dicom v1.0.5 // indirect
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
 	github.com/tklauser/numcpus v0.4.0 // indirect
 	github.com/xlab/treeprint v1.1.0 // indirect
