@@ -3,6 +3,7 @@ package database
 import (
 	"dicom-store-api/models"
 	"github.com/go-pg/pg"
+	DicomTag "github.com/suyashkumar/dicom/pkg/tag"
 )
 
 // StudyStore implements database operations for study management.
@@ -17,14 +18,19 @@ func NewStudyStore(db *pg.DB) *StudyStore {
 	}
 }
 
-func (s *StudyStore) FindByPatient(patient string) ([]*models.Study, error) {
+func (s *StudyStore) FindByTags(tags []*DicomTag.Tag) ([]*models.Study, error) {
 	//sTag := models.Study{}.GetObjectIdFieldTag()
 	//info, _ := tag.Find(sTag)
 	//info.Name
 
+	//val := reflect.ValueOf(models.Study{})
+	//for i := 0; i < val.Type().NumField(); i++ {
+	//	fmt.Println(val.Type().Field(i).Tag.Get("json"))
+	//}
+
 	var studies []*models.Study
 	err := s.db.Model(&studies).
-		Where("patient = ?", patient).
+		//Where("patient = ?", patient).
 		Select()
 
 	return studies, err
@@ -42,6 +48,6 @@ func (s *StudyStore) Get(studyID int) (*models.Study, error) {
 
 // Update updates study.
 func (s *StudyStore) Update(study *models.Study) error {
-	err := s.db.Update(study)
+	_, err := s.db.Model(study).WherePK().Update()
 	return err
 }

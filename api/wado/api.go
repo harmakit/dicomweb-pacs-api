@@ -20,16 +20,19 @@ const (
 
 // API provides application resources and handlers.
 type API struct {
-	Study *StudyResource
+	Study   *StudyResource
+	Studies *StudiesResource
 }
 
 // NewAPI configures and returns application API.
 func NewAPI(db *pg.DB) (*API, error) {
 	studyStore := database.NewStudyStore(db)
 	study := NewStudyResource(studyStore)
+	studies := NewStudiesResource(studyStore)
 
 	api := &API{
-		Study: study,
+		Study:   study,
+		Studies: studies,
 	}
 	return api, nil
 }
@@ -39,6 +42,7 @@ func (a *API) Router() *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Mount("/study", a.Study.router())
+	r.Mount("/studies", a.Studies.router())
 
 	return r
 }

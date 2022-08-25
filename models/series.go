@@ -12,7 +12,7 @@ import (
 type Series struct {
 	TableName struct{} `sql:"series"`
 
-	ID        int       `json:"-"`
+	ID        int       `json:"-" sql:",pk"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Study     *Study    `json:"study"`

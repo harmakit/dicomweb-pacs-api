@@ -19,7 +19,7 @@ var (
 // StudyStore defines database operations for a study.
 type StudyStore interface {
 	Get(accountID int) (*models.Study, error)
-	FindByPatient(patient string) ([]*models.Study, error)
+	//FindByPatient(patient string) ([]*models.Study, error)
 	Update(s *models.Study) error
 }
 
@@ -97,11 +97,12 @@ func (rs *StudyResource) get(w http.ResponseWriter, r *http.Request) {
 	//j, _ := json.Marshal(dataset)
 	//fmt.Println(j)
 
-	studies, err := rs.Store.FindByPatient("patient1")
-	if err != nil {
-		render.Render(w, r, ErrInternalServerError)
-		return
-	}
+	studies := []*models.Study{}
+	//studies, err := rs.Store.FindByPatient("patient1")
+	//if err != nil {
+	//	render.Render(w, r, ErrInternalServerError)
+	//	return
+	//}
 	render.Respond(w, r, newStudiesResponse(studies))
 }
 
