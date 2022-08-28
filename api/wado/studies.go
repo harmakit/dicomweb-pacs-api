@@ -9,8 +9,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/suyashkumar/dicom"
+	"github.com/suyashkumar/dicom/pkg/tag"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 )
 
 // ErrStudyValidation defines the list of error types returned from study resource.
@@ -115,15 +117,18 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println(dataset)
 
-	//
-	//// Dataset is also JSON serializable out of the box.
-	//j, _ := json.Marshal(dataset)
-	//fmt.Println(j)
+	study := models.Study{}
+	ExtractDicomObjectFromDataset(dataset, &study)
 
-	// todo create dicom objects from dataset
+	series := models.Series{Study: &study}
+	ExtractDicomObjectFromDataset(dataset, &series)
+
+	instance := models.Instance{Series: &series}
+	ExtractDicomObjectFromDataset(dataset, &instance)
+
 	// todo save dicom objects to database
 	// todo generate filepath for dicom objects
-	study := models.Study{}
+
 	//studies, err := rs.Store.FindByPatient("patient1")
 	//if err != nil {
 	//	render.Render(w, r, ErrInternalServerError)
@@ -134,4 +139,26 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 	fs.Save("./test.dcm", body)
 
 	render.Respond(w, r, newStudiesSaveResponse(&study))
+}
+
+func ExtractDicomObjectFromDataset(dataset dicom.Dataset, object models.DicomObject) {
+	reflection := reflect.TypeOf(object).Elem()
+
+	for i := 0; i < reflection.NumField(); i++ {
+		field := reflection.Field(i)
+		tagInfo, err := tag.FindByName(field.Tag.Get("dicom"))
+		if err != nil {
+			continue
+		}
+		element, _ := dataset.FindElementByTag(tagInfo.Tag)
+		if element == nil {
+			continue
+		}
+		if element.Value.ValueType() != 0 {
+			panic(fmt.Sprintf("field %s is not a string type", field.Name))
+		}
+		datasetValue := element.Value.GetValue()
+		stringDatasetValue := datasetValue.([]string)[0]
+		reflect.ValueOf(object).Elem().FieldByIndex(field.Index).SetString(stringDatasetValue)
+	}
 }

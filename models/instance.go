@@ -17,12 +17,12 @@ type Instance struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	Series    *Series   `json:"series"`
 
-	SOPClassUID    string `json:"sop_class_uid"`
-	SOPInstanceUID string `json:"sop_instance_uid"`
-	InstanceNumber string `json:"instance_number"`
+	SOPClassUID    string `json:"sop_class_uid" dicom:"SOPClassUID"`
+	SOPInstanceUID string `json:"sop_instance_uid" dicom:"SOPInstanceUID"`
+	InstanceNumber string `json:"instance_number" dicom:"InstanceNumber"`
 }
 
-func (i Instance) GetObjectIdFieldTag() tag.Tag {
+func (i *Instance) GetObjectIdFieldTag() tag.Tag {
 	return tag.SOPInstanceUID
 }
 

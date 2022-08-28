@@ -16,18 +16,18 @@ type Study struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-	StudyDate              string `json:"study_date"`
-	StudyTime              string `json:"study_time"`
-	AccessionNumber        string `json:"accession_number"`
-	ModalitiesInStudy      string `json:"modalities_in_study"`
-	ReferringPhysicianName string `json:"referring_physician_name"`
-	PatientName            string `json:"patient_name"`
-	PatientID              string `json:"patient_id"`
-	StudyInstanceUID       string `json:"study_instance_uid"`
-	StudyID                string `json:"study_id"`
+	StudyDate              string `json:"study_date" dicom:"StudyDate"`
+	StudyTime              string `json:"study_time" dicom:"StudyTime"`
+	AccessionNumber        string `json:"accession_number" dicom:"AccessionNumber"`
+	ModalitiesInStudy      string `json:"modalities_in_study" dicom:"ModalitiesInStudy"`
+	ReferringPhysicianName string `json:"referring_physician_name" dicom:"ReferringPhysicianName"`
+	PatientName            string `json:"patient_name" dicom:"PatientName"`
+	PatientID              string `json:"patient_id" dicom:"PatientID"`
+	StudyInstanceUID       string `json:"study_instance_uid" dicom:"StudyInstanceUID"`
+	StudyID                string `json:"study_id" dicom:"StudyID"`
 }
 
-func (s Study) GetObjectIdFieldTag() tag.Tag {
+func (s *Study) GetObjectIdFieldTag() tag.Tag {
 	return tag.StudyInstanceUID
 }
 

@@ -17,17 +17,17 @@ type Series struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	Study     *Study    `json:"study"`
 
-	Modality                        string `json:"modality"`
-	SeriesInstanceUID               string `json:"series_instance_uid"`
-	SeriesNumber                    string `json:"series_number"`
-	PerformedProcedureStepStartDate string `json:"performed_procedure_step_start_date"`
-	PerformedProcedureStepStartTime string `json:"performed_procedure_step_start_time"`
-	RequestAttributesSequence       string `json:"request_attributes_sequence"`
-	ScheduledProcedureStepID        string `json:"scheduled_procedure_step_id"`
-	RequestedProcedureID            string `json:"requested_procedure_id"`
+	Modality                        string `json:"modality" dicom:"Modality"`
+	SeriesInstanceUID               string `json:"series_instance_uid" dicom:"SeriesInstanceUID"`
+	SeriesNumber                    string `json:"series_number" dicom:"SeriesNumber"`
+	PerformedProcedureStepStartDate string `json:"performed_procedure_step_start_date" dicom:"PerformedProcedureStepStartDate"`
+	PerformedProcedureStepStartTime string `json:"performed_procedure_step_start_time" dicom:"PerformedProcedureStepStartTime"`
+	RequestAttributesSequence       string `json:"request_attributes_sequence" dicom:"RequestAttributesSequence"`
+	ScheduledProcedureStepID        string `json:"scheduled_procedure_step_id" dicom:"ScheduledProcedureStepID"`
+	RequestedProcedureID            string `json:"requested_procedure_id" dicom:"RequestedProcedureID"`
 }
 
-func (s Series) GetObjectIdFieldTag() tag.Tag {
+func (s *Series) GetObjectIdFieldTag() tag.Tag {
 	return tag.SeriesInstanceUID
 }
 
