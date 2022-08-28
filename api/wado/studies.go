@@ -20,21 +20,35 @@ var (
 	ErrStudiesValidation = errors.New("studies validation error")
 )
 
-// StudiesStore defines database operations for a study.
 type StudiesStore interface {
-	Get(accountID int) (*models.Study, error)
-	Update(s *models.Study) error
+	//Get(accountID int) (*models.Study, error)
+	//Update(s *models.Study) error
+	Create(s *models.Study) error
+}
+type SeriesStore interface {
+	//Get(accountID int) (*models.Study, error)
+	//Update(s *models.Study) error
+	Create(s *models.Series) error
+}
+type InstanceStore interface {
+	//Get(accountID int) (*models.Study, error)
+	//Update(s *models.Study) error
+	Create(s *models.Instance) error
 }
 
 // StudiesResource implements study management handler.
 type StudiesResource struct {
-	Store StudiesStore
+	StudiesStore  StudiesStore
+	SeriesStore   SeriesStore
+	InstanceStore InstanceStore
 }
 
 // NewStudiesResource creates and returns a study resource.
-func NewStudiesResource(store StudiesStore) *StudiesResource {
+func NewStudiesResource(studiesStore StudiesStore, seriesStore SeriesStore, instanceStore InstanceStore) *StudiesResource {
 	return &StudiesResource{
-		Store: store,
+		StudiesStore:  studiesStore,
+		SeriesStore:   seriesStore,
+		InstanceStore: instanceStore,
 	}
 }
 
@@ -126,6 +140,32 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 	instance := models.Instance{Series: &series}
 	ExtractDicomObjectFromDataset(dataset, &instance)
 
+	// start transaction
+
+	// check if study exists...
+	if err = rs.StudiesStore.Create(&study); err != nil {
+		render.Render(w, r, ErrInternalServerError)
+		return
+	}
+
+	series.StudyId = study.ID
+	series.Study = &study
+	study.Series = append(study.Series, &series)
+	if err = rs.SeriesStore.Create(&series); err != nil {
+		render.Render(w, r, ErrInternalServerError)
+		return
+	}
+
+	instance.SeriesId = series.ID
+	instance.Series = &series
+	series.Instances = append(series.Instances, &instance)
+	if err = rs.InstanceStore.Create(&instance); err != nil {
+		render.Render(w, r, ErrInternalServerError)
+		return
+	}
+
+	// commit transaction
+
 	// todo save dicom objects to database
 	// todo generate filepath for dicom objects
 
@@ -157,8 +197,13 @@ func ExtractDicomObjectFromDataset(dataset dicom.Dataset, object models.DicomObj
 		if element.Value.ValueType() != 0 {
 			panic(fmt.Sprintf("field %s is not a string type", field.Name))
 		}
-		datasetValue := element.Value.GetValue()
-		stringDatasetValue := datasetValue.([]string)[0]
+
+		var stringDatasetValue string
+		if tagInfo.VR == "SQ" {
+			stringDatasetValue = element.Value.String()
+		} else {
+			stringDatasetValue = element.Value.GetValue().([]string)[0]
+		}
 		reflect.ValueOf(object).Elem().FieldByIndex(field.Index).SetString(stringDatasetValue)
 	}
 }

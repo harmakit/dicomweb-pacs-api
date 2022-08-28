@@ -79,6 +79,10 @@ func New(enableCORS bool) (*chi.Mux, error) {
 		r.Use(jwt.Authenticator)
 		r.Mount("/admin", adminAPI.Router())
 		r.Mount("/api", appAPI.Router())
+		//r.Mount("/wado", wadoAPI.Router()) // todo: uncomment to enable authentication for wado
+	})
+
+	r.Group(func(r chi.Router) { // todo: remove
 		r.Mount("/wado", wadoAPI.Router())
 	})
 

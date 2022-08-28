@@ -10,12 +10,13 @@ import (
 )
 
 type Instance struct {
-	TableName struct{} `sql:"series"`
+	TableName struct{} `sql:"instance"`
 
 	ID        int       `json:"-" sql:",pk"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	Series    *Series   `json:"series"`
+	SeriesId  int
+	Series    *Series `json:"series"`
 
 	SOPClassUID    string `json:"sop_class_uid" dicom:"SOPClassUID"`
 	SOPInstanceUID string `json:"sop_instance_uid" dicom:"SOPInstanceUID"`

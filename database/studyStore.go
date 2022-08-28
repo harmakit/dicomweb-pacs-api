@@ -18,7 +18,7 @@ func NewStudyStore(db *pg.DB) *StudyStore {
 	}
 }
 
-func (s *StudyStore) FindByTags(tags []*DicomTag.Tag) ([]*models.Study, error) {
+func (store *StudyStore) FindByTags(tags []*DicomTag.Tag) ([]*models.Study, error) {
 	//sTag := models.Study{}.GetObjectIdFieldTag()
 	//info, _ := tag.Find(sTag)
 	//info.Name
@@ -29,7 +29,7 @@ func (s *StudyStore) FindByTags(tags []*DicomTag.Tag) ([]*models.Study, error) {
 	//}
 
 	var studies []*models.Study
-	err := s.db.Model(&studies).
+	err := store.db.Model(&studies).
 		//Where("patient = ?", patient).
 		Select()
 
@@ -37,9 +37,9 @@ func (s *StudyStore) FindByTags(tags []*DicomTag.Tag) ([]*models.Study, error) {
 }
 
 // Get gets a study by study ID.
-func (s *StudyStore) Get(studyID int) (*models.Study, error) {
+func (store *StudyStore) Get(studyID int) (*models.Study, error) {
 	study := models.Study{ID: studyID}
-	err := s.db.Model(&study).
+	err := store.db.Model(&study).
 		Where("id = ?", studyID).
 		Select()
 
@@ -47,7 +47,13 @@ func (s *StudyStore) Get(studyID int) (*models.Study, error) {
 }
 
 // Update updates study.
-func (s *StudyStore) Update(study *models.Study) error {
-	_, err := s.db.Model(study).WherePK().Update()
+func (store *StudyStore) Update(study *models.Study) error {
+	_, err := store.db.Model(study).WherePK().Update()
+	return err
+}
+
+// Create creates a new study.
+func (store *StudyStore) Create(study *models.Study) error {
+	_, err := store.db.Model(study).Insert()
 	return err
 }

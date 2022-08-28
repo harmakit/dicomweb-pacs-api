@@ -15,6 +15,7 @@ type Study struct {
 	ID        int       `json:"-" sql:",pk"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	Series    []*Series `json:"series"`
 
 	StudyDate              string `json:"study_date" dicom:"StudyDate"`
 	StudyTime              string `json:"study_time" dicom:"StudyTime"`
@@ -23,7 +24,7 @@ type Study struct {
 	ReferringPhysicianName string `json:"referring_physician_name" dicom:"ReferringPhysicianName"`
 	PatientName            string `json:"patient_name" dicom:"PatientName"`
 	PatientID              string `json:"patient_id" dicom:"PatientID"`
-	StudyInstanceUID       string `json:"study_instance_uid" dicom:"StudyInstanceUID"`
+	StudyInstanceUID       string `json:"study_instance_uid" sql:",unique" dicom:"StudyInstanceUID"`
 	StudyID                string `json:"study_id" dicom:"StudyID"`
 }
 

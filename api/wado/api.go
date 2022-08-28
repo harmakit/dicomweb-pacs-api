@@ -27,8 +27,10 @@ type API struct {
 // NewAPI configures and returns application API.
 func NewAPI(db *pg.DB) (*API, error) {
 	studyStore := database.NewStudyStore(db)
+	seriesStore := database.NewSeriesStore(db)
+	instanceStore := database.NewInstanceStore(db)
 	study := NewStudyResource(studyStore)
-	studies := NewStudiesResource(studyStore)
+	studies := NewStudiesResource(studyStore, seriesStore, instanceStore)
 
 	api := &API{
 		Study:   study,
