@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/go-pg/pg"
 	"github.com/suyashkumar/dicom"
 	"github.com/suyashkumar/dicom/pkg/tag"
 	"io/ioutil"
@@ -15,38 +16,35 @@ import (
 	"reflect"
 )
 
-// ErrStudyValidation defines the list of error types returned from study resource.
+// ErrStudiesValidation defines the list of error types returned from study resource.
 var (
 	ErrStudiesValidation = errors.New("studies validation error")
 )
 
 type StudiesStore interface {
-	//Get(accountID int) (*models.Study, error)
-	//Update(s *models.Study) error
-	Create(s *models.Study) error
+	FindBy(s *models.Study, fields map[string]any, tx *pg.Tx) error
+	Create(s *models.Study, tx *pg.Tx) error
 }
 type SeriesStore interface {
-	//Get(accountID int) (*models.Study, error)
-	//Update(s *models.Study) error
-	Create(s *models.Series) error
+	Create(s *models.Series, tx *pg.Tx) error
 }
 type InstanceStore interface {
-	//Get(accountID int) (*models.Study, error)
-	//Update(s *models.Study) error
-	Create(s *models.Instance) error
+	Create(s *models.Instance, tx *pg.Tx) error
 }
 
-// StudiesResource implements study management handler.
+// StudiesResource implements management handler.
 type StudiesResource struct {
-	StudiesStore  StudiesStore
+	DB            *pg.DB
+	StudyStore    StudiesStore
 	SeriesStore   SeriesStore
 	InstanceStore InstanceStore
 }
 
 // NewStudiesResource creates and returns a study resource.
-func NewStudiesResource(studiesStore StudiesStore, seriesStore SeriesStore, instanceStore InstanceStore) *StudiesResource {
+func NewStudiesResource(db *pg.DB, studiesStore StudiesStore, seriesStore SeriesStore, instanceStore InstanceStore) *StudiesResource {
 	return &StudiesResource{
-		StudiesStore:  studiesStore,
+		DB:            db,
+		StudyStore:    studiesStore,
 		SeriesStore:   seriesStore,
 		InstanceStore: instanceStore,
 	}
@@ -140,10 +138,16 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 	instance := models.Instance{Series: &series}
 	ExtractDicomObjectFromDataset(dataset, &instance)
 
-	// start transaction
+	// todo check if study exists...
+	studies := rs.StudyStore.FindBy(&study, map[string]any{
+		"StudyInstanceUID": study.StudyInstanceUID,
+	}, nil)
+	fmt.Println(studies)
 
-	// check if study exists...
-	if err = rs.StudiesStore.Create(&study); err != nil {
+	tx, err := rs.DB.Begin()
+
+	if err = rs.StudyStore.Create(&study, tx); err != nil {
+		tx.Rollback()
 		render.Render(w, r, ErrInternalServerError)
 		return
 	}
@@ -151,7 +155,9 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 	series.StudyId = study.ID
 	series.Study = &study
 	study.Series = append(study.Series, &series)
-	if err = rs.SeriesStore.Create(&series); err != nil {
+	// todo check if series exists...
+	if err = rs.SeriesStore.Create(&series, tx); err != nil {
+		tx.Rollback()
 		render.Render(w, r, ErrInternalServerError)
 		return
 	}
@@ -159,24 +165,21 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 	instance.SeriesId = series.ID
 	instance.Series = &series
 	series.Instances = append(series.Instances, &instance)
-	if err = rs.InstanceStore.Create(&instance); err != nil {
+	// todo check if instance exists...
+	if err = rs.InstanceStore.Create(&instance, tx); err != nil {
+		tx.Rollback()
 		render.Render(w, r, ErrInternalServerError)
 		return
 	}
 
-	// commit transaction
+	path := fs.GetDicomPath(study, series, instance)
+	if err = fs.Save(path, body); err != nil {
+		tx.Rollback()
+		render.Render(w, r, ErrInternalServerError)
+		return
+	}
 
-	// todo save dicom objects to database
-	// todo generate filepath for dicom objects
-
-	//studies, err := rs.Store.FindByPatient("patient1")
-	//if err != nil {
-	//	render.Render(w, r, ErrInternalServerError)
-	//	return
-	//}
-
-	// todo use filepath to save dicom objects to filesystem
-	fs.Save("./test.dcm", body)
+	tx.Commit()
 
 	render.Respond(w, r, newStudiesSaveResponse(&study))
 }

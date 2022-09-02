@@ -3,6 +3,7 @@ package database
 import (
 	"dicom-store-api/models"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	DicomTag "github.com/suyashkumar/dicom/pkg/tag"
 )
 
@@ -53,7 +54,16 @@ func (store *InstanceStore) Update(instance *models.Instance) error {
 }
 
 // Create creates a new instance.
-func (store *InstanceStore) Create(instance *models.Instance) error {
-	_, err := store.db.Model(instance).Insert()
+func (store *InstanceStore) Create(instance *models.Instance, tx *pg.Tx) error {
+	db := store.GetOrm(tx)
+	_, err := db.Model(instance).Insert()
 	return err
+}
+
+func (store *InstanceStore) GetOrm(tx *pg.Tx) orm.DB {
+	if tx != nil {
+		return tx
+	} else {
+		return store.db
+	}
 }

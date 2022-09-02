@@ -30,7 +30,7 @@ func NewAPI(db *pg.DB) (*API, error) {
 	seriesStore := database.NewSeriesStore(db)
 	instanceStore := database.NewInstanceStore(db)
 	study := NewStudyResource(studyStore)
-	studies := NewStudiesResource(studyStore, seriesStore, instanceStore)
+	studies := NewStudiesResource(db, studyStore, seriesStore, instanceStore)
 
 	api := &API{
 		Study:   study,

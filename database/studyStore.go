@@ -2,8 +2,10 @@ package database
 
 import (
 	"dicom-store-api/models"
+	"fmt"
 	"github.com/go-pg/pg"
-	DicomTag "github.com/suyashkumar/dicom/pkg/tag"
+	"github.com/go-pg/pg/orm"
+	"reflect"
 )
 
 // StudyStore implements database operations for study management.
@@ -18,20 +20,22 @@ func NewStudyStore(db *pg.DB) *StudyStore {
 	}
 }
 
-func (store *StudyStore) FindByTags(tags []*DicomTag.Tag) ([]*models.Study, error) {
-	//sTag := models.Study{}.GetObjectIdFieldTag()
-	//info, _ := tag.Find(sTag)
-	//info.Name
+func (store *StudyStore) FindBy(s *models.Study, fields map[string]any, tx *pg.Tx) ([]*models.Study, error) {
+	for fieldName := range fields {
+		studyField := reflect.ValueOf(s).Elem().FieldByName(fieldName)
+		if !studyField.IsValid() {
+			return nil, fmt.Errorf("invalid field name: %s", fieldName)
+		}
+	}
 
-	//val := reflect.ValueOf(models.Study{})
-	//for i := 0; i < val.Type().NumField(); i++ {
-	//	fmt.Println(val.Type().Field(i).Tag.Get("json"))
-	//}
+	db := store.GetOrm(tx)
 
 	var studies []*models.Study
-	err := store.db.Model(&studies).
-		//Where("patient = ?", patient).
-		Select()
+	query := db.Model(&studies)
+	for fieldName, fieldValue := range fields {
+		query = query.Where(fmt.Sprintf("%s = ?", fieldName), fieldValue)
+	}
+	err := query.Select()
 
 	return studies, err
 }
@@ -53,7 +57,16 @@ func (store *StudyStore) Update(study *models.Study) error {
 }
 
 // Create creates a new study.
-func (store *StudyStore) Create(study *models.Study) error {
-	_, err := store.db.Model(study).Insert()
+func (store *StudyStore) Create(study *models.Study, tx *pg.Tx) error {
+	db := store.GetOrm(tx)
+	_, err := db.Model(study).Insert()
 	return err
+}
+
+func (store *StudyStore) GetOrm(tx *pg.Tx) orm.DB {
+	if tx != nil {
+		return tx
+	} else {
+		return store.db
+	}
 }

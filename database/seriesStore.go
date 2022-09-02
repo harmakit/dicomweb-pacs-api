@@ -3,6 +3,7 @@ package database
 import (
 	"dicom-store-api/models"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	DicomTag "github.com/suyashkumar/dicom/pkg/tag"
 )
 
@@ -53,7 +54,16 @@ func (store *SeriesStore) Update(series *models.Series) error {
 }
 
 // Create creates a new series.
-func (store *SeriesStore) Create(series *models.Series) error {
-	_, err := store.db.Model(series).Insert()
+func (store *SeriesStore) Create(series *models.Series, tx *pg.Tx) error {
+	db := store.GetOrm(tx)
+	_, err := db.Model(series).Insert()
 	return err
+}
+
+func (store *SeriesStore) GetOrm(tx *pg.Tx) orm.DB {
+	if tx != nil {
+		return tx
+	} else {
+		return store.db
+	}
 }
