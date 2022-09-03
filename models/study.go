@@ -15,7 +15,6 @@ type Study struct {
 	ID        int       `json:"-" sql:",pk"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	Series    []*Series `json:"series"`
 
 	StudyDate              string `json:"study_date" dicom:"StudyDate"`
 	StudyTime              string `json:"study_time" dicom:"StudyTime"`
@@ -48,6 +47,5 @@ func (s *Study) BeforeUpdate(db orm.DB) error {
 
 // Validate validates Study struct and returns validation errors.
 func (s *Study) Validate() error {
-
 	return validation.ValidateStruct(s) //validation.Field(&p.Patient, validation.Required, validation.In("patient1", "patient2")),
 }

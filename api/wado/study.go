@@ -16,13 +16,6 @@ var (
 	ErrStudyValidation = errors.New("study validation error")
 )
 
-// StudyStore defines database operations for a study.
-type StudyStore interface {
-	Get(accountID int) (*models.Study, error)
-	//FindByPatient(patient string) ([]*models.Study, error)
-	Update(s *models.Study) error
-}
-
 // StudyResource implements study management handler.
 type StudyResource struct {
 	Store StudyStore

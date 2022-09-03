@@ -39,10 +39,10 @@ func Save(filepath string, data []byte) error {
 	return err
 }
 
-func GetDicomPath(study models.Study, series models.Series, instance models.Instance) string {
-	studyId := getDicomObjectPathString(&study)
-	seriesId := getDicomObjectPathString(&series)
-	instanceId := getDicomObjectPathString(&instance)
+func GetDicomPath(study *models.Study, series *models.Series, instance *models.Instance) string {
+	studyId := getDicomObjectPathString(study)
+	seriesId := getDicomObjectPathString(series)
+	instanceId := getDicomObjectPathString(instance)
 
 	return ROOT + filepath.Join(UPLOADS_DIR, DICOM_PREFIX, studyId, seriesId, instanceId+DICOM_EXT)
 }

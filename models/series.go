@@ -16,8 +16,7 @@ type Series struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	StudyId   int
-	Study     *Study      `json:"study"`
-	Instances []*Instance `json:"instances"`
+	Study     *Study `json:"study"`
 
 	Modality                        string `json:"modality" dicom:"Modality"`
 	SeriesInstanceUID               string `json:"series_instance_uid" dicom:"SeriesInstanceUID"`

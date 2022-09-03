@@ -2,9 +2,11 @@ package database
 
 import (
 	"dicom-store-api/models"
+	"dicom-store-api/utils"
+	"fmt"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
-	DicomTag "github.com/suyashkumar/dicom/pkg/tag"
+	"reflect"
 )
 
 // InstanceStore implements database operations for instance management.
@@ -19,22 +21,24 @@ func NewInstanceStore(db *pg.DB) *InstanceStore {
 	}
 }
 
-func (store *InstanceStore) FindByTags(tags []*DicomTag.Tag) ([]*models.Instance, error) {
-	//sTag := models.Instance{}.GetObjectIdFieldTag()
-	//info, _ := tag.Find(sTag)
-	//info.Name
+func (store *InstanceStore) FindByFields(fields map[string]any, tx *pg.Tx) ([]*models.Instance, error) {
+	db := store.GetOrm(tx)
 
-	//val := reflect.ValueOf(models.Instance{})
-	//for store := 0; store < val.Type().NumField(); store++ {
-	//	fmt.Println(val.Type().Field(store).Tag.Get("json"))
-	//}
+	var result []*models.Instance
+	query := db.Model(&result)
+	for fieldName, fieldValue := range fields {
+		structField := reflect.ValueOf(&models.Instance{}).Elem().FieldByName(fieldName)
+		if !structField.IsValid() {
+			return nil, fmt.Errorf("invalid field name: %s", fieldName)
+		}
+		columnName := utils.ToSnakeCase(fieldName)
+		query.Where(fmt.Sprintf("%s = ?", columnName), fieldValue)
+	}
+	query.Relation("Series")
 
-	var studies []*models.Instance
-	err := store.db.Model(&studies).
-		//Where("patient = ?", patient).
-		Select()
+	err := query.Select()
 
-	return studies, err
+	return result, err
 }
 
 // Get gets an instance by instance ID.

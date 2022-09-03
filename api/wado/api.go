@@ -2,6 +2,7 @@
 package wado
 
 import (
+	"dicom-store-api/models"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -22,6 +23,20 @@ const (
 type API struct {
 	Study   *StudyResource
 	Studies *StudiesResource
+}
+
+type StudyStore interface {
+	FindByFields(fields map[string]any, tx *pg.Tx) ([]*models.Study, error)
+	Create(s *models.Study, tx *pg.Tx) error
+	Update(s *models.Study) error
+}
+type SeriesStore interface {
+	Create(s *models.Series, tx *pg.Tx) error
+	FindByFields(fields map[string]any, tx *pg.Tx) ([]*models.Series, error)
+}
+type InstanceStore interface {
+	Create(s *models.Instance, tx *pg.Tx) error
+	FindByFields(fields map[string]any, tx *pg.Tx) ([]*models.Instance, error)
 }
 
 // NewAPI configures and returns application API.

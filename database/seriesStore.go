@@ -2,9 +2,11 @@ package database
 
 import (
 	"dicom-store-api/models"
+	"dicom-store-api/utils"
+	"fmt"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
-	DicomTag "github.com/suyashkumar/dicom/pkg/tag"
+	"reflect"
 )
 
 // SeriesStore implements database operations for series management.
@@ -19,22 +21,24 @@ func NewSeriesStore(db *pg.DB) *SeriesStore {
 	}
 }
 
-func (store *SeriesStore) FindByTags(tags []*DicomTag.Tag) ([]*models.Series, error) {
-	//sTag := models.Series{}.GetObjectIdFieldTag()
-	//info, _ := tag.Find(sTag)
-	//info.Name
+func (store *SeriesStore) FindByFields(fields map[string]any, tx *pg.Tx) ([]*models.Series, error) {
+	db := store.GetOrm(tx)
 
-	//val := reflect.ValueOf(models.Series{})
-	//for i := 0; i < val.Type().NumField(); i++ {
-	//	fmt.Println(val.Type().Field(i).Tag.Get("json"))
-	//}
+	var result []*models.Series
+	query := db.Model(&result)
+	for fieldName, fieldValue := range fields {
+		structField := reflect.ValueOf(&models.Series{}).Elem().FieldByName(fieldName)
+		if !structField.IsValid() {
+			return nil, fmt.Errorf("invalid field name: %s", fieldName)
+		}
+		columnName := utils.ToSnakeCase(fieldName)
+		query.Where(fmt.Sprintf("%s = ?", columnName), fieldValue)
+	}
+	query.Relation("Study")
 
-	var series []*models.Series
-	err := store.db.Model(&series).
-		//Where("patient = ?", patient).
-		Select()
+	err := query.Select()
 
-	return series, err
+	return result, err
 }
 
 // Get gets a series by series ID.

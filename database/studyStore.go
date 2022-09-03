@@ -2,6 +2,7 @@ package database
 
 import (
 	"dicom-store-api/models"
+	"dicom-store-api/utils"
 	"fmt"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -20,24 +21,22 @@ func NewStudyStore(db *pg.DB) *StudyStore {
 	}
 }
 
-func (store *StudyStore) FindBy(s *models.Study, fields map[string]any, tx *pg.Tx) ([]*models.Study, error) {
-	for fieldName := range fields {
-		studyField := reflect.ValueOf(s).Elem().FieldByName(fieldName)
-		if !studyField.IsValid() {
-			return nil, fmt.Errorf("invalid field name: %s", fieldName)
-		}
-	}
-
+func (store *StudyStore) FindByFields(fields map[string]any, tx *pg.Tx) ([]*models.Study, error) {
 	db := store.GetOrm(tx)
 
-	var studies []*models.Study
-	query := db.Model(&studies)
+	var result []*models.Study
+	query := db.Model(&result)
 	for fieldName, fieldValue := range fields {
-		query = query.Where(fmt.Sprintf("%s = ?", fieldName), fieldValue)
+		structField := reflect.ValueOf(&models.Study{}).Elem().FieldByName(fieldName)
+		if !structField.IsValid() {
+			return nil, fmt.Errorf("invalid field name: %s", fieldName)
+		}
+		columnName := utils.ToSnakeCase(fieldName)
+		query.Where(fmt.Sprintf("%s = ?", columnName), fieldValue)
 	}
 	err := query.Select()
 
-	return studies, err
+	return result, err
 }
 
 // Get gets a study by study ID.
