@@ -16,15 +16,22 @@ type Study struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-	StudyDate              string `json:"study_date" dicom:"StudyDate"`
-	StudyTime              string `json:"study_time" dicom:"StudyTime"`
-	AccessionNumber        string `json:"accession_number" dicom:"AccessionNumber"`
-	ModalitiesInStudy      string `json:"modalities_in_study" dicom:"ModalitiesInStudy"`
-	ReferringPhysicianName string `json:"referring_physician_name" dicom:"ReferringPhysicianName"`
-	PatientName            string `json:"patient_name" dicom:"PatientName"`
-	PatientID              string `json:"patient_id" dicom:"PatientID"`
-	StudyInstanceUID       string `json:"study_instance_uid" sql:",unique" dicom:"StudyInstanceUID"`
-	StudyID                string `json:"study_id" dicom:"StudyID"`
+	StudyDate                     string `json:"study_date" dicom:"StudyDate"`
+	StudyTime                     string `json:"study_time" dicom:"StudyTime"`
+	AccessionNumber               string `json:"accession_number" dicom:"AccessionNumber"`
+	InstanceAvailability          string `json:"instance_availability" dicom:"InstanceAvailability"`
+	ModalitiesInStudy             string `json:"modalities_in_study" dicom:"ModalitiesInStudy"`
+	ReferringPhysicianName        string `json:"referring_physician_name" dicom:"ReferringPhysicianName"`
+	TimeZoneOffsetFromUTC         string `json:"time_zone_offset_from_utc" dicom:"TimeZoneOffsetFromUTC"`
+	RetrieveURL                   string `json:"retrieve_url" dicom:"RetrieveURL"`
+	PatientName                   string `json:"patient_name" dicom:"PatientName"`
+	PatientID                     string `json:"patient_id" dicom:"PatientID"`
+	PatientBirthDate              string `json:"patient_birth_date" dicom:"PatientBirthDate"`
+	PatientSex                    string `json:"patient_sex" dicom:"PatientSex"`
+	StudyInstanceUID              string `json:"study_instance_uid" sql:",unique" dicom:"StudyInstanceUID"`
+	StudyID                       string `json:"study_id" dicom:"StudyID"`
+	NumberOfStudyRelatedSeries    string `json:"number_of_study_related_series" dicom:"NumberOfStudyRelatedSeries"`
+	NumberOfStudyRelatedInstances string `json:"number_of_study_related_instances" dicom:"NumberOfStudyRelatedInstances"`
 }
 
 func (s *Study) GetObjectIdFieldTag() tag.Tag {
