@@ -52,8 +52,9 @@ func (store *InstanceStore) Get(instanceID int) (*models.Instance, error) {
 }
 
 // Update updates instance.
-func (store *InstanceStore) Update(instance *models.Instance) error {
-	_, err := store.db.Model(instance).WherePK().Update()
+func (store *InstanceStore) Update(instance *models.Instance, tx *pg.Tx) error {
+	db := store.GetOrm(tx)
+	_, err := db.Model(instance).WherePK().Update()
 	return err
 }
 

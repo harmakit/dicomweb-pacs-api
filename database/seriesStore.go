@@ -52,8 +52,9 @@ func (store *SeriesStore) Get(seriesID int) (*models.Series, error) {
 }
 
 // Update updates series.
-func (store *SeriesStore) Update(series *models.Series) error {
-	_, err := store.db.Model(series).WherePK().Update()
+func (store *SeriesStore) Update(series *models.Series, tx *pg.Tx) error {
+	db := store.GetOrm(tx)
+	_, err := db.Model(series).WherePK().Update()
 	return err
 }
 

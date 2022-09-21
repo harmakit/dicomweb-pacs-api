@@ -106,7 +106,7 @@ func (rs *StudyResource) update(w http.ResponseWriter, r *http.Request) {
 		render.Render(w, r, ErrInvalidRequest(err))
 	}
 
-	if err := rs.Store.Update(s); err != nil {
+	if err := rs.Store.Update(s, nil); err != nil {
 		switch err.(type) {
 		case validation.Errors:
 			render.Render(w, r, ErrValidation(ErrStudyValidation, err.(validation.Errors)))

@@ -50,8 +50,9 @@ func (store *StudyStore) Get(studyID int) (*models.Study, error) {
 }
 
 // Update updates study.
-func (store *StudyStore) Update(study *models.Study) error {
-	_, err := store.db.Model(study).WherePK().Update()
+func (store *StudyStore) Update(study *models.Study, tx *pg.Tx) error {
+	db := store.GetOrm(tx)
+	_, err := db.Model(study).WherePK().Update()
 	return err
 }
 

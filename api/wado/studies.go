@@ -105,6 +105,11 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 
 	if len(studyList) == 1 {
 		study = studyList[0]
+		if err = rs.StudyStore.Update(study, tx); err != nil {
+			tx.Rollback()
+			render.Render(w, r, ErrInternalServerError)
+			return
+		}
 	} else {
 		if err = rs.StudyStore.Create(study, tx); err != nil {
 			tx.Rollback()
@@ -123,6 +128,11 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 
 	if len(seriesList) == 1 {
 		series = seriesList[0]
+		if err = rs.SeriesStore.Update(series, tx); err != nil {
+			tx.Rollback()
+			render.Render(w, r, ErrInternalServerError)
+			return
+		}
 	} else {
 		series.StudyId = study.ID
 		series.Study = study
@@ -137,21 +147,20 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 		"SOPInstanceUID": instance.SOPInstanceUID,
 	}, nil)
 	if err != nil {
-		render.Render(w, r, ErrInternalServerError)
-		return
-	}
-
-	if len(instanceList) == 1 {
-		render.Render(w, r, ErrBadRequest) // instance already exists
-		return
-	}
-
-	instance.SeriesId = series.ID
-	instance.Series = series
-	if err = rs.InstanceStore.Create(instance, tx); err != nil {
-		tx.Rollback()
-		render.Render(w, r, ErrInternalServerError)
-		return
+		instance = instanceList[0]
+		if err = rs.InstanceStore.Update(instance, tx); err != nil {
+			tx.Rollback()
+			render.Render(w, r, ErrInternalServerError)
+			return
+		}
+	} else {
+		instance.SeriesId = series.ID
+		instance.Series = series
+		if err = rs.InstanceStore.Create(instance, tx); err != nil {
+			tx.Rollback()
+			render.Render(w, r, ErrInternalServerError)
+			return
+		}
 	}
 
 	path := fs.GetDicomPath(study, series, instance)
