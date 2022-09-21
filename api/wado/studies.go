@@ -82,8 +82,6 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 
 	dataset, _ := dicom.Parse(bytes.NewReader(body), MaxUploadSize, nil)
 
-	fmt.Println(dataset)
-
 	study := &models.Study{}
 	ExtractDicomObjectFromDataset(dataset, study)
 
@@ -147,6 +145,11 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 		"SOPInstanceUID": instance.SOPInstanceUID,
 	}, nil)
 	if err != nil {
+		render.Render(w, r, ErrInternalServerError)
+		return
+	}
+
+	if len(instanceList) == 1 {
 		instance = instanceList[0]
 		if err = rs.InstanceStore.Update(instance, tx); err != nil {
 			tx.Rollback()
@@ -170,7 +173,12 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		render.Render(w, r, ErrInternalServerError)
+		return
+	}
 
 	render.Respond(w, r, newStudiesSaveResponse(study))
 }
