@@ -21,7 +21,7 @@ func NewStudyStore(db *pg.DB) *StudyStore {
 	}
 }
 
-func (store *StudyStore) FindByFields(fields map[string]any, tx *pg.Tx) ([]*models.Study, error) {
+func (store *StudyStore) FindBy(fields map[string]any, options *SelectQueryOptions, tx *pg.Tx) ([]*models.Study, error) {
 	db := store.GetOrm(tx)
 
 	var result []*models.Study
@@ -32,9 +32,16 @@ func (store *StudyStore) FindByFields(fields map[string]any, tx *pg.Tx) ([]*mode
 			return nil, fmt.Errorf("invalid field name: %s", fieldName)
 		}
 		columnName := utils.ToSnakeCase(fieldName)
-		query.Where(fmt.Sprintf("%s = ?", columnName), fieldValue)
+
+		rt := reflect.TypeOf(fieldValue)
+		if rt.Kind() == reflect.Slice || rt.Kind() == reflect.Array {
+			query.WhereIn(fmt.Sprintf("%s = ?", columnName), fieldValue)
+		} else {
+			query.Where(fmt.Sprintf("%s = ?", columnName), fieldValue)
+		}
 	}
 	err := query.Select()
+	options.Apply(query)
 
 	return result, err
 }

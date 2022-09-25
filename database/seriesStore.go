@@ -21,7 +21,7 @@ func NewSeriesStore(db *pg.DB) *SeriesStore {
 	}
 }
 
-func (store *SeriesStore) FindByFields(fields map[string]any, tx *pg.Tx) ([]*models.Series, error) {
+func (store *SeriesStore) FindBy(fields map[string]any, options *SelectQueryOptions, tx *pg.Tx) ([]*models.Series, error) {
 	db := store.GetOrm(tx)
 
 	var result []*models.Series
@@ -35,6 +35,7 @@ func (store *SeriesStore) FindByFields(fields map[string]any, tx *pg.Tx) ([]*mod
 		query.Where(fmt.Sprintf("%s = ?", columnName), fieldValue)
 	}
 	query.Relation("Study")
+	options.Apply(query)
 
 	err := query.Select()
 

@@ -30,12 +30,12 @@ func NewSTOWResource(db *pg.DB, studyStore StudyStore, seriesStore SeriesStore, 
 	}
 }
 
-type STOWSaveResponse struct {
+type STOWResponse struct {
 	Study *models.Study
 }
 
-func newSTOWSaveResponse(s *models.Study) *STOWSaveResponse {
-	return &STOWSaveResponse{
+func newSTOWResponse(s *models.Study) *STOWResponse {
+	return &STOWResponse{
 		Study: s,
 	}
 }
@@ -69,9 +69,9 @@ func (rs *STOWResource) save(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := rs.DB.Begin()
 
-	studyList, err := rs.StudyStore.FindByFields(map[string]any{
+	studyList, err := rs.StudyStore.FindBy(map[string]any{
 		"StudyInstanceUID": study.StudyInstanceUID,
-	}, nil)
+	}, nil, nil)
 	if err != nil {
 		render.Render(w, r, ErrInternalServerError)
 		return
@@ -92,9 +92,9 @@ func (rs *STOWResource) save(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	seriesList, err := rs.SeriesStore.FindByFields(map[string]any{
+	seriesList, err := rs.SeriesStore.FindBy(map[string]any{
 		"SeriesInstanceUID": series.SeriesInstanceUID,
-	}, nil)
+	}, nil, nil)
 	if err != nil {
 		render.Render(w, r, ErrInternalServerError)
 		return
@@ -117,9 +117,9 @@ func (rs *STOWResource) save(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	instanceList, err := rs.InstanceStore.FindByFields(map[string]any{
+	instanceList, err := rs.InstanceStore.FindBy(map[string]any{
 		"SOPInstanceUID": instance.SOPInstanceUID,
-	}, nil)
+	}, nil, nil)
 	if err != nil {
 		render.Render(w, r, ErrInternalServerError)
 		return
@@ -156,5 +156,5 @@ func (rs *STOWResource) save(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.Respond(w, r, newSTOWSaveResponse(study))
+	render.Respond(w, r, newSTOWResponse(study))
 }

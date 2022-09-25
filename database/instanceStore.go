@@ -21,7 +21,7 @@ func NewInstanceStore(db *pg.DB) *InstanceStore {
 	}
 }
 
-func (store *InstanceStore) FindByFields(fields map[string]any, tx *pg.Tx) ([]*models.Instance, error) {
+func (store *InstanceStore) FindBy(fields map[string]any, options *SelectQueryOptions, tx *pg.Tx) ([]*models.Instance, error) {
 	db := store.GetOrm(tx)
 
 	var result []*models.Instance
@@ -35,6 +35,7 @@ func (store *InstanceStore) FindByFields(fields map[string]any, tx *pg.Tx) ([]*m
 		query.Where(fmt.Sprintf("%s = ?", columnName), fieldValue)
 	}
 	query.Relation("Series")
+	options.Apply(query)
 
 	err := query.Select()
 

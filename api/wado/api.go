@@ -26,17 +26,17 @@ type API struct {
 }
 
 type StudyStore interface {
-	FindByFields(fields map[string]any, tx *pg.Tx) ([]*models.Study, error)
+	FindBy(fields map[string]any, options *database.SelectQueryOptions, tx *pg.Tx) ([]*models.Study, error)
 	Create(s *models.Study, tx *pg.Tx) error
 	Update(s *models.Study, tx *pg.Tx) error
 }
 type SeriesStore interface {
-	FindByFields(fields map[string]any, tx *pg.Tx) ([]*models.Series, error)
+	FindBy(fields map[string]any, options *database.SelectQueryOptions, tx *pg.Tx) ([]*models.Series, error)
 	Create(s *models.Series, tx *pg.Tx) error
 	Update(s *models.Series, tx *pg.Tx) error
 }
 type InstanceStore interface {
-	FindByFields(fields map[string]any, tx *pg.Tx) ([]*models.Instance, error)
+	FindBy(fields map[string]any, options *database.SelectQueryOptions, tx *pg.Tx) ([]*models.Instance, error)
 	Create(s *models.Instance, tx *pg.Tx) error
 	Update(s *models.Instance, tx *pg.Tx) error
 }
