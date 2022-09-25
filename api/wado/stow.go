@@ -4,34 +4,25 @@ import (
 	"bytes"
 	"dicom-store-api/fs"
 	"dicom-store-api/models"
-	"errors"
-	"fmt"
-	"github.com/go-chi/chi/v5"
+	"dicom-store-api/utils"
 	"github.com/go-chi/render"
 	"github.com/go-pg/pg"
 	"github.com/suyashkumar/dicom"
-	"github.com/suyashkumar/dicom/pkg/tag"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 )
 
-// ErrStudiesValidation defines the list of error types returned from study resource.
-var (
-	ErrStudiesValidation = errors.New("studies validation error")
-)
-
-// StudiesResource implements management handler.
-type StudiesResource struct {
+// STOWResource implements management handler.
+type STOWResource struct {
 	DB            *pg.DB
 	StudyStore    StudyStore
 	SeriesStore   SeriesStore
 	InstanceStore InstanceStore
 }
 
-// NewStudiesResource creates and returns a study resource.
-func NewStudiesResource(db *pg.DB, studyStore StudyStore, seriesStore SeriesStore, instanceStore InstanceStore) *StudiesResource {
-	return &StudiesResource{
+// NewSTOWResource creates and returns a study resource.
+func NewSTOWResource(db *pg.DB, studyStore StudyStore, seriesStore SeriesStore, instanceStore InstanceStore) *STOWResource {
+	return &STOWResource{
 		DB:            db,
 		StudyStore:    studyStore,
 		SeriesStore:   seriesStore,
@@ -39,32 +30,17 @@ func NewStudiesResource(db *pg.DB, studyStore StudyStore, seriesStore SeriesStor
 	}
 }
 
-func (rs *StudiesResource) router() *chi.Mux {
-	r := chi.NewRouter()
-	r.Post("/", rs.save)
-	return r
-}
-
-type studiesSaveRequest struct {
-	*models.Study
-	ProtectedID int `json:"id"`
-}
-
-func (d *studiesSaveRequest) Bind(r *http.Request) error {
-	return nil
-}
-
-type studiesSaveResponse struct {
+type STOWSaveResponse struct {
 	Study *models.Study
 }
 
-func newStudiesSaveResponse(s *models.Study) *studiesSaveResponse {
-	return &studiesSaveResponse{
+func newSTOWSaveResponse(s *models.Study) *STOWSaveResponse {
+	return &STOWSaveResponse{
 		Study: s,
 	}
 }
 
-func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
+func (rs *STOWResource) save(w http.ResponseWriter, r *http.Request) {
 	const MaxUploadSize = 10 << 20 // 10MB
 	if r.ContentLength > MaxUploadSize {
 		http.Error(w, "The uploaded image is too big. Please use an image less than 10MB in size", http.StatusBadRequest)
@@ -75,21 +51,21 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 	defer bodyReader.Close()
 
 	body, err := ioutil.ReadAll(bodyReader)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err != nil || len(body) == 0 {
+		http.Error(w, "Wrong request body", http.StatusBadRequest)
 		return
 	}
 
 	dataset, _ := dicom.Parse(bytes.NewReader(body), MaxUploadSize, nil)
 
 	study := &models.Study{}
-	ExtractDicomObjectFromDataset(dataset, study)
+	utils.ExtractDicomObjectFromDataset(dataset, study)
 
 	series := &models.Series{Study: study}
-	ExtractDicomObjectFromDataset(dataset, series)
+	utils.ExtractDicomObjectFromDataset(dataset, series)
 
 	instance := &models.Instance{Series: series}
-	ExtractDicomObjectFromDataset(dataset, instance)
+	utils.ExtractDicomObjectFromDataset(dataset, instance)
 
 	tx, err := rs.DB.Begin()
 
@@ -180,32 +156,5 @@ func (rs *StudiesResource) save(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.Respond(w, r, newStudiesSaveResponse(study))
-}
-
-func ExtractDicomObjectFromDataset(dataset dicom.Dataset, object models.DicomObject) {
-	reflection := reflect.TypeOf(object).Elem()
-
-	for i := 0; i < reflection.NumField(); i++ {
-		field := reflection.Field(i)
-		tagInfo, err := tag.FindByName(field.Tag.Get("dicom"))
-		if err != nil {
-			continue
-		}
-		element, _ := dataset.FindElementByTag(tagInfo.Tag)
-		if element == nil {
-			continue
-		}
-		if element.Value.ValueType() != 0 {
-			panic(fmt.Sprintf("field %s is not a string type", field.Name))
-		}
-
-		var stringDatasetValue string
-		if tagInfo.VR == "SQ" {
-			stringDatasetValue = element.Value.String()
-		} else {
-			stringDatasetValue = element.Value.GetValue().([]string)[0]
-		}
-		reflect.ValueOf(object).Elem().FieldByIndex(field.Index).SetString(stringDatasetValue)
-	}
+	render.Respond(w, r, newSTOWSaveResponse(study))
 }

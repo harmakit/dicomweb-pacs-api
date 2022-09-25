@@ -21,8 +21,8 @@ const (
 
 // API provides application resources and handlers.
 type API struct {
-	Study   *StudyResource
-	Studies *StudiesResource
+	QIDO *QIDOResource
+	STOW *STOWResource
 }
 
 type StudyStore interface {
@@ -46,12 +46,13 @@ func NewAPI(db *pg.DB) (*API, error) {
 	studyStore := database.NewStudyStore(db)
 	seriesStore := database.NewSeriesStore(db)
 	instanceStore := database.NewInstanceStore(db)
-	study := NewStudyResource(studyStore)
-	studies := NewStudiesResource(db, studyStore, seriesStore, instanceStore)
+
+	QIDO := NewQIDOResource(db, studyStore, seriesStore, instanceStore)
+	STOW := NewSTOWResource(db, studyStore, seriesStore, instanceStore)
 
 	api := &API{
-		Study:   study,
-		Studies: studies,
+		QIDO,
+		STOW,
 	}
 	return api, nil
 }
@@ -60,8 +61,10 @@ func NewAPI(db *pg.DB) (*API, error) {
 func (a *API) Router() *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Mount("/study", a.Study.router())
-	r.Mount("/studies", a.Studies.router())
+	r.Get("/studies", a.QIDO.studies)
+	r.Get("/studies/{studyUID}/series", a.QIDO.series)
+	r.Get("/studies/{studyUID}/series/{seriesUID}/instances", a.QIDO.instances)
+	r.Post("/studies", a.STOW.save)
 
 	return r
 }
