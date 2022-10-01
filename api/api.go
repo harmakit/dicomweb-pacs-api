@@ -82,7 +82,7 @@ func New(enableCORS bool) (*chi.Mux, error) {
 		//r.Mount("/wado", wadoAPI.Router()) // todo: uncomment to enable authentication for wado
 	})
 
-	r.Group(func(r chi.Router) { // todo: remove
+	r.Group(func(r chi.Router) { // todo: remove this group to enable authentication for wado
 		r.Mount("/wado", wadoAPI.Router())
 	})
 

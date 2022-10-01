@@ -23,6 +23,7 @@ func NewStudyStore(db *pg.DB) *StudyStore {
 
 func (store *StudyStore) FindBy(fields map[string]any, options *SelectQueryOptions, tx *pg.Tx) ([]*models.Study, error) {
 	db := store.GetOrm(tx)
+	tableName := (&models.Study{}).GetTableName()
 
 	var result []*models.Study
 	query := db.Model(&result)
@@ -35,14 +36,18 @@ func (store *StudyStore) FindBy(fields map[string]any, options *SelectQueryOptio
 
 		rt := reflect.TypeOf(fieldValue)
 		if rt.Kind() == reflect.Slice || rt.Kind() == reflect.Array {
-			query.WhereIn(fmt.Sprintf("%s = ?", columnName), fieldValue)
+			var values []interface{}
+			for i := 0; i < reflect.ValueOf(fieldValue).Len(); i++ {
+				values = append(values, reflect.ValueOf(fieldValue).Index(i).Interface())
+			}
+			query.WhereIn(fmt.Sprintf("%s.%s IN (?)", tableName, columnName), values...)
 		} else {
-			query.Where(fmt.Sprintf("%s = ?", columnName), fieldValue)
+			query.Where(fmt.Sprintf("%s.%s = ?", tableName, columnName), fieldValue)
 		}
 	}
-	err := query.Select()
 	options.Apply(query)
 
+	err := query.Select()
 	return result, err
 }
 

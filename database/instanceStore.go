@@ -23,6 +23,7 @@ func NewInstanceStore(db *pg.DB) *InstanceStore {
 
 func (store *InstanceStore) FindBy(fields map[string]any, options *SelectQueryOptions, tx *pg.Tx) ([]*models.Instance, error) {
 	db := store.GetOrm(tx)
+	tableName := (&models.Instance{}).GetTableName()
 
 	var result []*models.Instance
 	query := db.Model(&result)
@@ -32,7 +33,17 @@ func (store *InstanceStore) FindBy(fields map[string]any, options *SelectQueryOp
 			return nil, fmt.Errorf("invalid field name: %s", fieldName)
 		}
 		columnName := utils.ToSnakeCase(fieldName)
-		query.Where(fmt.Sprintf("%s = ?", columnName), fieldValue)
+
+		rt := reflect.TypeOf(fieldValue)
+		if rt.Kind() == reflect.Slice || rt.Kind() == reflect.Array {
+			var values []interface{}
+			for i := 0; i < reflect.ValueOf(fieldValue).Len(); i++ {
+				values = append(values, reflect.ValueOf(fieldValue).Index(i).Interface())
+			}
+			query.WhereIn(fmt.Sprintf("%s.%s IN (?)", tableName, columnName), values...)
+		} else {
+			query.Where(fmt.Sprintf("%s.%s = ?", tableName, columnName), fieldValue)
+		}
 	}
 	query.Relation("Series")
 	options.Apply(query)

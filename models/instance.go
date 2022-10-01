@@ -2,6 +2,7 @@ package models
 
 import (
 	"github.com/suyashkumar/dicom/pkg/tag"
+	"reflect"
 	"time"
 
 	"github.com/go-ozzo/ozzo-validation"
@@ -44,4 +45,10 @@ func (i *Instance) BeforeUpdate(db orm.DB) error {
 // Validate validates Instance struct and returns validation errors.
 func (i *Instance) Validate() error {
 	return validation.ValidateStruct(i)
+}
+
+func (s *Instance) GetTableName() string {
+	field, _ := reflect.TypeOf(s).Elem().FieldByName("TableName")
+	tableName, _ := field.Tag.Lookup("sql")
+	return tableName
 }

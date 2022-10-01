@@ -10,6 +10,9 @@ type SelectQueryOptions struct {
 }
 
 func (s *SelectQueryOptions) Apply(q *orm.Query) *orm.Query {
+	if s == nil {
+		return q
+	}
 	if s.Limit > 0 {
 		q = q.Limit(s.Limit)
 	}

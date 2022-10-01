@@ -1,4 +1,3 @@
-// Package app ties together application resources and handlers.
 package wado
 
 import (
@@ -17,6 +16,7 @@ type ctxKey int
 
 const (
 	ctxStudy ctxKey = iota
+	ctxSeries
 )
 
 // API provides application resources and handlers.
@@ -61,10 +61,18 @@ func NewAPI(db *pg.DB) (*API, error) {
 func (a *API) Router() *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Get("/studies", a.QIDO.studies)
-	r.Get("/studies/{studyUID}/series", a.QIDO.series)
-	r.Get("/studies/{studyUID}/series/{seriesUID}/instances", a.QIDO.instances)
-	r.Post("/studies", a.STOW.save)
+	// QIDO group
+	r.Group(func(r chi.Router) {
+		r.Use(a.QIDO.ctx)
+		r.Get("/studies", a.QIDO.studies)
+		r.Get("/studies/{studyUID}/series", a.QIDO.series)
+		r.Get("/studies/{studyUID}/series/{seriesUID}/instances", a.QIDO.instances)
+	})
+
+	// STOW group
+	r.Group(func(r chi.Router) {
+		r.Post("/studies", a.STOW.save)
+	})
 
 	return r
 }

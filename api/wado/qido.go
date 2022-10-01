@@ -1,6 +1,7 @@
 package wado
 
 import (
+	"context"
 	"dicom-store-api/database"
 	"dicom-store-api/models"
 	"dicom-store-api/utils"
@@ -14,6 +15,46 @@ import (
 	"strconv"
 	"strings"
 )
+
+func (rs *QIDOResource) ctx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		studyUID := chi.URLParam(r, "studyUID")
+		if studyUID != "" {
+			studyUIDTagInfo, _ := tag.Find((&models.Study{}).GetObjectIdFieldTag())
+			fields := map[string]any{studyUIDTagInfo.Name: studyUID}
+			studyList, err := rs.StudyStore.FindBy(fields, &database.SelectQueryOptions{Limit: 1}, nil)
+			if err != nil || len(studyList) != 1 {
+				render.Render(w, r, ErrNotFound)
+				return
+			}
+			ctx = context.WithValue(ctx, ctxStudy, studyList[0])
+		}
+
+		seriesUID := chi.URLParam(r, "seriesUID")
+		if seriesUID != "" {
+			seriesUIDTagInfo, _ := tag.Find((&models.Series{}).GetObjectIdFieldTag())
+			fields := map[string]any{seriesUIDTagInfo.Name: seriesUID}
+
+			study := ctx.Value(ctxStudy).(*models.Study)
+			if study == nil {
+				render.Render(w, r, ErrInternalServerError)
+				return
+			}
+			fields["StudyId"] = study.ID
+
+			seriesList, err := rs.SeriesStore.FindBy(fields, &database.SelectQueryOptions{Limit: 1}, nil)
+			if err != nil || len(seriesList) != 1 {
+				render.Render(w, r, ErrNotFound)
+				return
+			}
+			ctx = context.WithValue(ctx, ctxSeries, seriesList[0])
+		}
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
 // QIDOResource implements management handler.
 type QIDOResource struct {
@@ -37,13 +78,12 @@ type QIDOResponse []interface{}
 
 func newQIDOResponse(objects []models.DicomObject, rd *QIDORequest) *QIDOResponse {
 	var s = make([]interface{}, len(objects))
-	for _, object := range objects {
+	for objectIndex, object := range objects {
 		var formatted = map[string]any{}
 
 		reflection := reflect.TypeOf(object).Elem()
-
-		for i := 0; i < reflection.NumField(); i++ {
-			field := reflection.Field(i)
+		for fieldIndex := 0; fieldIndex < reflection.NumField(); fieldIndex++ {
+			field := reflection.Field(fieldIndex)
 			tagInfo, err := tag.FindByName(field.Tag.Get("dicom"))
 			if err != nil {
 				continue
@@ -55,9 +95,9 @@ func newQIDOResponse(objects []models.DicomObject, rd *QIDORequest) *QIDORespons
 			}
 
 			fieldKey := fmt.Sprintf("%04x%04x", tagInfo.Tag.Group, tagInfo.Tag.Element)
-			formatted[fieldKey] = reflection.Field(i)
+			formatted[fieldKey] = reflect.ValueOf(object).Elem().Field(fieldIndex).Interface()
 		}
-		s = append(s, formatted)
+		s[objectIndex] = formatted
 	}
 
 	response := QIDOResponse(s)
@@ -87,14 +127,16 @@ func getQIDORequest(r *http.Request) *QIDORequest {
 		case "limit":
 			limit, err := strconv.Atoi(value[0])
 			if err != nil {
-				data.Limit = limit
+				continue
 			}
+			data.Limit = limit
 			break
 		case "offset":
 			offset, err := strconv.Atoi(value[0])
 			if err != nil {
-				data.Offset = offset
+				continue
 			}
+			data.Offset = offset
 			break
 		case "includefield":
 			for _, field := range value {
@@ -137,20 +179,7 @@ func (rs *QIDOResource) studies(w http.ResponseWriter, r *http.Request) {
 		Offset: requestData.Offset,
 	}
 
-	fields := map[string]any{}
-	if requestData.Filters != nil {
-		for key, value := range requestData.Filters {
-			if len(value) == 0 {
-				continue
-			}
-			tagInfo, _ := tag.Find(key)
-			if len(value) == 1 {
-				fields[tagInfo.Name] = value[0]
-			} else {
-				fields[tagInfo.Name] = value
-			}
-		}
-	}
+	fields := getFieldsForStoreRequest(requestData)
 
 	studyList, err := rs.StudyStore.FindBy(fields, options, nil)
 	if err != nil {
@@ -167,145 +196,68 @@ func (rs *QIDOResource) studies(w http.ResponseWriter, r *http.Request) {
 
 func (rs *QIDOResource) series(w http.ResponseWriter, r *http.Request) {
 	requestData := getQIDORequest(r)
-	studyUIDTag := (&models.Study{}).GetObjectIdFieldTag()
-	requestData.Filters[studyUIDTag] = append(requestData.Filters[studyUIDTag], chi.URLParam(r, "studyUID"))
-	_ = requestData
+
+	options := &database.SelectQueryOptions{
+		Limit:  requestData.Limit,
+		Offset: requestData.Offset,
+	}
+
+	fields := getFieldsForStoreRequest(requestData)
+	study := r.Context().Value(ctxStudy).(*models.Study)
+	fields["StudyId"] = study.ID
+
+	seriesList, err := rs.SeriesStore.FindBy(fields, options, nil)
+	if err != nil {
+		render.Render(w, r, ErrInternalServerError)
+		return
+	}
+
+	dicomObjectsList := make([]models.DicomObject, len(seriesList))
+	for i, study := range seriesList {
+		dicomObjectsList[i] = study
+	}
+	render.Respond(w, r, newQIDOResponse(dicomObjectsList, requestData))
 }
 
 func (rs *QIDOResource) instances(w http.ResponseWriter, r *http.Request) {
 	requestData := getQIDORequest(r)
-	studyUIDTag := (&models.Study{}).GetObjectIdFieldTag()
-	requestData.Filters[studyUIDTag] = append(requestData.Filters[studyUIDTag], chi.URLParam(r, "studyUID"))
-	seriesUIDTag := (&models.Series{}).GetObjectIdFieldTag()
-	requestData.Filters[seriesUIDTag] = append(requestData.Filters[seriesUIDTag], chi.URLParam(r, "seriesUID"))
+
+	options := &database.SelectQueryOptions{
+		Limit:  requestData.Limit,
+		Offset: requestData.Offset,
+	}
+
+	fields := getFieldsForStoreRequest(requestData)
+	series := r.Context().Value(ctxSeries).(*models.Series)
+	fields["SeriesId"] = series.ID
+
+	instanceList, err := rs.InstanceStore.FindBy(fields, options, nil)
+	if err != nil {
+		render.Render(w, r, ErrInternalServerError)
+		return
+	}
+
+	dicomObjectsList := make([]models.DicomObject, len(instanceList))
+	for i, study := range instanceList {
+		dicomObjectsList[i] = study
+	}
+	render.Respond(w, r, newQIDOResponse(dicomObjectsList, requestData))
 }
 
-//
-//type QIDOSaveResponse struct {
-//	Study *models.Study
-//}
-//
-//func newQIDOSaveResponse(s *models.Study) *QIDOSaveResponse {
-//	return &QIDOSaveResponse{
-//		Study: s,
-//	}
-//}
-//
-//func (rs *QIDOResource) save(w http.ResponseWriter, r *http.Request) {
-//	const MaxUploadSize = 10 << 20 // 10MB
-//	if r.ContentLength > MaxUploadSize {
-//		http.Error(w, "The uploaded image is too big. Please use an image less than 10MB in size", http.StatusBadRequest)
-//		return
-//	}
-//	bodyReader := http.MaxBytesReader(w, r.Body, MaxUploadSize)
-//
-//	defer bodyReader.Close()
-//
-//	body, err := ioutil.ReadAll(bodyReader)
-//	if err != nil || len(body) == 0 {
-//		http.Error(w, "Wrong request body", http.StatusBadRequest)
-//		return
-//	}
-//
-//	dataset, _ := dicom.Parse(bytes.NewReader(body), MaxUploadSize, nil)
-//
-//	study := &models.Study{}
-//	utils.ExtractDicomObjectFromDataset(dataset, study)
-//
-//	series := &models.Series{Study: study}
-//	utils.ExtractDicomObjectFromDataset(dataset, series)
-//
-//	instance := &models.Instance{Series: series}
-//	utils.ExtractDicomObjectFromDataset(dataset, instance)
-//
-//	tx, err := rs.DB.Begin()
-//
-//	studyList, err := rs.StudyStore.FindBy(map[string]any{
-//		"StudyInstanceUID": study.StudyInstanceUID,
-//	}, nil)
-//	if err != nil {
-//		render.Render(w, r, ErrInternalServerError)
-//		return
-//	}
-//
-//	if len(studyList) == 1 {
-//		study = studyList[0]
-//		if err = rs.StudyStore.Update(study, tx); err != nil {
-//			tx.Rollback()
-//			render.Render(w, r, ErrInternalServerError)
-//			return
-//		}
-//	} else {
-//		if err = rs.StudyStore.Create(study, tx); err != nil {
-//			tx.Rollback()
-//			render.Render(w, r, ErrInternalServerError)
-//			return
-//		}
-//	}
-//
-//	seriesList, err := rs.SeriesStore.FindBy(map[string]any{
-//		"SeriesInstanceUID": series.SeriesInstanceUID,
-//	}, nil)
-//	if err != nil {
-//		render.Render(w, r, ErrInternalServerError)
-//		return
-//	}
-//
-//	if len(seriesList) == 1 {
-//		series = seriesList[0]
-//		if err = rs.SeriesStore.Update(series, tx); err != nil {
-//			tx.Rollback()
-//			render.Render(w, r, ErrInternalServerError)
-//			return
-//		}
-//	} else {
-//		series.StudyId = study.ID
-//		series.Study = study
-//		if err = rs.SeriesStore.Create(series, tx); err != nil {
-//			tx.Rollback()
-//			render.Render(w, r, ErrInternalServerError)
-//			return
-//		}
-//	}
-//
-//	instanceList, err := rs.InstanceStore.FindBy(map[string]any{
-//		"SOPInstanceUID": instance.SOPInstanceUID,
-//	}, nil)
-//	if err != nil {
-//		render.Render(w, r, ErrInternalServerError)
-//		return
-//	}
-//
-//	if len(instanceList) == 1 {
-//		instance = instanceList[0]
-//		if err = rs.InstanceStore.Update(instance, tx); err != nil {
-//			tx.Rollback()
-//			render.Render(w, r, ErrInternalServerError)
-//			return
-//		}
-//	} else {
-//		instance.SeriesId = series.ID
-//		instance.Series = series
-//		if err = rs.InstanceStore.Create(instance, tx); err != nil {
-//			tx.Rollback()
-//			render.Render(w, r, ErrInternalServerError)
-//			return
-//		}
-//	}
-//
-//	path := fs.GetDicomPath(study, series, instance)
-//	if err = fs.Save(path, body); err != nil {
-//		tx.Rollback()
-//		render.Render(w, r, ErrInternalServerError)
-//		return
-//	}
-//
-//	err = tx.Commit()
-//	if err != nil {
-//		tx.Rollback()
-//		render.Render(w, r, ErrInternalServerError)
-//		return
-//	}
-//
-//	render.Respond(w, r, newQIDOSaveResponse(study))
-//}
+func getFieldsForStoreRequest(requestData *QIDORequest) map[string]any {
+	fields := map[string]any{}
+	if requestData.Filters != nil {
+		for key, value := range requestData.Filters {
+			if len(value) == 0 {
+				continue
+			}
+			tagInfo, _ := tag.Find(key)
+			if len(value) == 1 {
+				fields[tagInfo.Name] = value[0]
+			} else {
+				fields[tagInfo.Name] = value
+			}
+		}
+	}
+	return fields
+}
