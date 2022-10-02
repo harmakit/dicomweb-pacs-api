@@ -79,6 +79,8 @@ func (a *API) Router() *chi.Mux {
 		r.Get("/studies/{studyUID}", a.WADO.study)
 		r.Get("/studies/{studyUID}/series/{seriesUID}", a.WADO.series)
 		r.Get("/studies/{studyUID}/series/{seriesUID}/instances/{instanceUID}", a.WADO.instance)
+
+		// todo metadata, generated, wado-uri
 	})
 
 	// STOW group

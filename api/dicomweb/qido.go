@@ -95,7 +95,15 @@ func newQIDOResponse(objects []models.DicomObject, rd *QIDORequest) *QIDORespons
 			}
 
 			fieldKey := fmt.Sprintf("%04x%04x", tagInfo.Tag.Group, tagInfo.Tag.Element)
-			formatted[fieldKey] = reflect.ValueOf(object).Elem().Field(fieldIndex).Interface()
+
+			value, err := utils.FormatStringValueForResponse(tagInfo, reflect.ValueOf(object).Elem().Field(fieldIndex).String())
+			if err != nil {
+				panic(err)
+			}
+			formatted[fieldKey] = map[string]interface{}{
+				"vr":    tagInfo.VR,
+				"Value": value,
+			}
 		}
 		s[objectIndex] = formatted
 	}
