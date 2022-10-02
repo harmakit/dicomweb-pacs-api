@@ -1,4 +1,4 @@
-package wado
+package dicomweb
 
 import (
 	"context"
@@ -64,7 +64,7 @@ type QIDOResource struct {
 	InstanceStore InstanceStore
 }
 
-// NewQIDOResource creates and returns a study resource.
+// NewQIDOResource creates and returns a QIDOResource.
 func NewQIDOResource(db *pg.DB, studyStore StudyStore, seriesStore SeriesStore, instanceStore InstanceStore) *QIDOResource {
 	return &QIDOResource{
 		DB:            db,
@@ -179,7 +179,7 @@ func (rs *QIDOResource) studies(w http.ResponseWriter, r *http.Request) {
 		Offset: requestData.Offset,
 	}
 
-	fields := getFieldsForStoreRequest(requestData)
+	fields := requestData.getFieldsForStoreRequest()
 
 	studyList, err := rs.StudyStore.FindBy(fields, options, nil)
 	if err != nil {
@@ -202,7 +202,7 @@ func (rs *QIDOResource) series(w http.ResponseWriter, r *http.Request) {
 		Offset: requestData.Offset,
 	}
 
-	fields := getFieldsForStoreRequest(requestData)
+	fields := requestData.getFieldsForStoreRequest()
 	study := r.Context().Value(ctxStudy).(*models.Study)
 	fields["StudyId"] = study.ID
 
@@ -227,7 +227,7 @@ func (rs *QIDOResource) instances(w http.ResponseWriter, r *http.Request) {
 		Offset: requestData.Offset,
 	}
 
-	fields := getFieldsForStoreRequest(requestData)
+	fields := requestData.getFieldsForStoreRequest()
 	series := r.Context().Value(ctxSeries).(*models.Series)
 	fields["SeriesId"] = series.ID
 
@@ -244,7 +244,7 @@ func (rs *QIDOResource) instances(w http.ResponseWriter, r *http.Request) {
 	render.Respond(w, r, newQIDOResponse(dicomObjectsList, requestData))
 }
 
-func getFieldsForStoreRequest(requestData *QIDORequest) map[string]any {
+func (requestData *QIDORequest) getFieldsForStoreRequest() map[string]any {
 	fields := map[string]any{}
 	if requestData.Filters != nil {
 		for key, value := range requestData.Filters {

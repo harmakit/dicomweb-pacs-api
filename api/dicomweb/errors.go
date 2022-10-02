@@ -1,4 +1,4 @@
-package wado
+package dicomweb
 
 import (
 	"net/http"

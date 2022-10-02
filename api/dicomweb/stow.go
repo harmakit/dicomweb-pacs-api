@@ -1,4 +1,4 @@
-package wado
+package dicomweb
 
 import (
 	"bytes"
@@ -20,7 +20,7 @@ type STOWResource struct {
 	InstanceStore InstanceStore
 }
 
-// NewSTOWResource creates and returns a study resource.
+// NewSTOWResource creates and returns a STOWResource.
 func NewSTOWResource(db *pg.DB, studyStore StudyStore, seriesStore SeriesStore, instanceStore InstanceStore) *STOWResource {
 	return &STOWResource{
 		DB:            db,

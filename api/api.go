@@ -2,7 +2,7 @@
 package api
 
 import (
-	"dicom-store-api/api/wado"
+	"dicom-store-api/api/dicomweb"
 	"time"
 
 	"dicom-store-api/api/admin"
@@ -53,9 +53,9 @@ func New(enableCORS bool) (*chi.Mux, error) {
 		return nil, err
 	}
 
-	wadoAPI, err := wado.NewAPI(db)
+	wadoAPI, err := dicomweb.NewAPI(db)
 	if err != nil {
-		logger.WithField("module", "wado").Error(err)
+		logger.WithField("module", "dicomweb").Error(err)
 		return nil, err
 	}
 
@@ -79,11 +79,11 @@ func New(enableCORS bool) (*chi.Mux, error) {
 		r.Use(jwt.Authenticator)
 		r.Mount("/admin", adminAPI.Router())
 		r.Mount("/api", appAPI.Router())
-		//r.Mount("/wado", wadoAPI.Router()) // todo: uncomment to enable authentication for wado
+		//r.Mount("/dicomweb", wadoAPI.Router()) // todo: uncomment to enable authentication for dicomweb
 	})
 
-	r.Group(func(r chi.Router) { // todo: remove this group to enable authentication for wado
-		r.Mount("/wado", wadoAPI.Router())
+	r.Group(func(r chi.Router) { // todo: remove this group to enable authentication for dicomweb
+		r.Mount("/dicomweb", wadoAPI.Router())
 	})
 
 	return r, nil

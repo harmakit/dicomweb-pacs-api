@@ -1,4 +1,4 @@
-package wado
+package dicomweb
 
 import (
 	"dicom-store-api/models"
@@ -17,12 +17,14 @@ type ctxKey int
 const (
 	ctxStudy ctxKey = iota
 	ctxSeries
+	ctxInstance
 )
 
 // API provides application resources and handlers.
 type API struct {
 	QIDO *QIDOResource
 	STOW *STOWResource
+	WADO *WADOResource
 }
 
 type StudyStore interface {
@@ -49,10 +51,12 @@ func NewAPI(db *pg.DB) (*API, error) {
 
 	QIDO := NewQIDOResource(db, studyStore, seriesStore, instanceStore)
 	STOW := NewSTOWResource(db, studyStore, seriesStore, instanceStore)
+	WADO := NewWADOResource(db, studyStore, seriesStore, instanceStore)
 
 	api := &API{
 		QIDO,
 		STOW,
+		WADO,
 	}
 	return api, nil
 }
@@ -67,6 +71,14 @@ func (a *API) Router() *chi.Mux {
 		r.Get("/studies", a.QIDO.studies)
 		r.Get("/studies/{studyUID}/series", a.QIDO.series)
 		r.Get("/studies/{studyUID}/series/{seriesUID}/instances", a.QIDO.instances)
+	})
+
+	// WADO group
+	r.Group(func(r chi.Router) {
+		r.Use(a.WADO.ctx)
+		r.Get("/studies/{studyUID}", a.WADO.study)
+		r.Get("/studies/{studyUID}/series/{seriesUID}", a.WADO.series)
+		r.Get("/studies/{studyUID}/series/{seriesUID}/instances/{instanceUID}", a.WADO.instance)
 	})
 
 	// STOW group
