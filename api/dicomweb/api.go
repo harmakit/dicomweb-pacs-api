@@ -76,11 +76,30 @@ func (a *API) Router() *chi.Mux {
 	// WADO group
 	r.Group(func(r chi.Router) {
 		r.Use(a.WADO.ctx)
-		r.Get("/studies/{studyUID}", a.WADO.study)
-		r.Get("/studies/{studyUID}/series/{seriesUID}", a.WADO.series)
-		r.Get("/studies/{studyUID}/series/{seriesUID}/instances/{instanceUID}", a.WADO.instance)
 
-		// todo metadata, generated, wado-uri
+		r.Group(func(r chi.Router) {
+			r.Use(a.WADO.ctxDefaultRequest)
+			r.Get("/studies/{studyUID}", a.WADO.study)
+			r.Get("/studies/{studyUID}/series/{seriesUID}", a.WADO.series)
+			r.Get("/studies/{studyUID}/series/{seriesUID}/instances/{instanceUID}", a.WADO.instance)
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(a.WADO.ctxMetadataRequest)
+			r.Get("/studies/{studyUID}/metadata", a.WADO.study)
+			r.Get("/studies/{studyUID}/series/{seriesUID}/metadata", a.WADO.series)
+			r.Get("/studies/{studyUID}/series/{seriesUID}/instances/{instanceUID}/metadata", a.WADO.instance)
+		})
+
+		r.Group(func(r chi.Router) {
+			// todo rendered images are wierd. also should add support for options
+			r.Use(a.WADO.ctxRenderedRequest)
+			r.Get("/studies/{studyUID}/rendered", a.WADO.study)
+			r.Get("/studies/{studyUID}/series/{seriesUID}/rendered", a.WADO.series)
+			r.Get("/studies/{studyUID}/series/{seriesUID}/instances/{instanceUID}/rendered", a.WADO.instance)
+		})
+
+		// todo wado-uri
 	})
 
 	// STOW group

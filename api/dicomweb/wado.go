@@ -2,6 +2,7 @@ package dicomweb
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"dicom-store-api/database"
 	"dicom-store-api/fs"
@@ -10,11 +11,25 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/go-pg/pg"
+	"github.com/suyashkumar/dicom"
 	"github.com/suyashkumar/dicom/pkg/tag"
+	"image/jpeg"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
 	"os"
+)
+
+type RequestType int
+
+const (
+	requestTypeDefault RequestType = iota
+	requestTypeMetadata
+	requestTypeRendered
+)
+
+const (
+	ctxRequestType = iota
 )
 
 func (rs *WADOResource) ctx(next http.Handler) http.Handler {
@@ -77,6 +92,27 @@ func (rs *WADOResource) ctx(next http.Handler) http.Handler {
 	})
 }
 
+func (rs *WADOResource) ctxDefaultRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), ctxRequestType, requestTypeDefault)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (rs *WADOResource) ctxMetadataRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), ctxRequestType, requestTypeMetadata)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (rs *WADOResource) ctxRenderedRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), ctxRequestType, requestTypeRendered)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 // WADOResource implements management handler.
 type WADOResource struct {
 	DB            *pg.DB
@@ -96,39 +132,100 @@ func NewWADOResource(db *pg.DB, studyStore StudyStore, seriesStore SeriesStore, 
 }
 
 // Writes a multipart response from a list of paths to dicom files
-func writeWADORSResponse(w http.ResponseWriter, paths []string) error {
-	mw := multipart.NewWriter(w)
-	w.Header().Set("Content-Type", fmt.Sprintf("multipart/related; type=\"application/dicom\"; boundary=%s", mw.Boundary()))
+func writeWADORSResponse(w http.ResponseWriter, r *http.Request, paths []string) error {
+	if len(paths) == 0 {
+		render.Render(w, r, ErrNotFound)
+		return nil
+	}
 
-	partHeaders := textproto.MIMEHeader{}
-	partHeaders.Set("Content-Type", "application/dicom")
+	requestType := r.Context().Value(ctxRequestType).(RequestType)
+	switch requestType {
+	case requestTypeMetadata:
+		var responseData []any
+		for _, path := range paths {
+			var formatted = map[string]any{}
+			dataset, _ := dicom.ParseFile(path, nil)
+			for _, element := range dataset.Elements {
+				if element.ValueRepresentation == tag.VRPixelData {
+					continue
+				}
+				tagInfo, err := tag.Find(element.Tag)
+				if err != nil {
+					continue
+				}
 
-	for _, path := range paths {
-		partWriter, err := mw.CreatePart(partHeaders)
+				fieldKey := fmt.Sprintf("%04x%04x", tagInfo.Tag.Group, tagInfo.Tag.Element)
+
+				formatted[fieldKey] = map[string]interface{}{
+					"vr":    tagInfo.VR,
+					"Value": element.Value.GetValue(),
+				}
+
+			}
+			responseData = append(responseData, formatted)
+		}
+		render.Respond(w, r, responseData)
+		return nil
+	case requestTypeRendered:
+		path := paths[0]
+		dataset, _ := dicom.ParseFile(path, nil)
+		pixelDataTagInfo, err := tag.FindByName("PixelData")
 		if err != nil {
 			return err
 		}
-
-		file, err := os.Open(path)
+		element, err := dataset.FindElementByTag(pixelDataTagInfo.Tag)
 		if err != nil {
 			return err
 		}
+		elementValue := element.Value.GetValue().(dicom.PixelDataInfo)
+		if len(elementValue.Frames) == 0 {
+			return fmt.Errorf("no frames found")
+		}
+		image, err := elementValue.Frames[0].GetImage()
+		if err != nil {
+			return err
+		}
+		buffer := new(bytes.Buffer)
+		if err := jpeg.Encode(buffer, image, nil); err != nil {
+			return err
+		}
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Write(buffer.Bytes())
+	case requestTypeDefault:
+		mw := multipart.NewWriter(w)
+		w.Header().Set("Content-Type", fmt.Sprintf("multipart/related; type=\"application/dicom\"; boundary=%s", mw.Boundary()))
 
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			if _, err := partWriter.Write(scanner.Bytes()); err != nil {
+		partHeaders := textproto.MIMEHeader{}
+		partHeaders.Set("Content-Type", "application/dicom")
+
+		for _, path := range paths {
+			partWriter, err := mw.CreatePart(partHeaders)
+			if err != nil {
+				return err
+			}
+
+			file, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				if _, err := partWriter.Write(scanner.Bytes()); err != nil {
+					return err
+				}
+			}
+
+			if err := file.Close(); err != nil {
+				return err
+			}
+
+			if err := scanner.Err(); err != nil {
 				return err
 			}
 		}
-
-		if err := file.Close(); err != nil {
-			return err
-		}
-
-		if err := scanner.Err(); err != nil {
-			return err
-		}
 	}
+
 	return nil
 }
 
@@ -154,7 +251,7 @@ func (rs *WADOResource) study(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = writeWADORSResponse(w, paths)
+	err = writeWADORSResponse(w, r, paths)
 	if err != nil {
 		render.Render(w, r, ErrInternalServerError)
 		return
@@ -180,7 +277,7 @@ func (rs *WADOResource) series(w http.ResponseWriter, r *http.Request) {
 		paths = append(paths, path)
 	}
 
-	err = writeWADORSResponse(w, paths)
+	err = writeWADORSResponse(w, r, paths)
 	if err != nil {
 		render.Render(w, r, ErrInternalServerError)
 		return
@@ -199,7 +296,7 @@ func (rs *WADOResource) instance(w http.ResponseWriter, r *http.Request) {
 	path := fs.GetDicomPath(study, series, instance)
 	paths = append(paths, path)
 
-	err := writeWADORSResponse(w, paths)
+	err := writeWADORSResponse(w, r, paths)
 	if err != nil {
 		render.Render(w, r, ErrInternalServerError)
 		return
