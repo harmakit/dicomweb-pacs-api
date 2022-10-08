@@ -7,12 +7,15 @@ import (
 	"dicom-store-api/database"
 	"dicom-store-api/fs"
 	"dicom-store-api/models"
+	"dicom-store-api/utils"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/go-pg/pg"
 	"github.com/suyashkumar/dicom"
 	"github.com/suyashkumar/dicom/pkg/tag"
+	"image"
+	"image/color"
 	"image/jpeg"
 	"mime/multipart"
 	"net/http"
@@ -169,22 +172,36 @@ func writeWADORSResponse(w http.ResponseWriter, r *http.Request, paths []string)
 	case requestTypeRendered:
 		path := paths[0]
 		dataset, _ := dicom.ParseFile(path, nil)
-		pixelDataTagInfo, err := tag.FindByName("PixelData")
-		if err != nil {
-			return err
+		pixelDataElement, _ := dataset.FindElementByTag(tag.PixelData)
+		pixelDataInfo := dicom.MustGetPixelDataInfo(pixelDataElement.Value)
+
+		if len(pixelDataInfo.Frames) == 0 {
+			render.Render(w, r, ErrNotFound)
+			return nil
 		}
-		element, err := dataset.FindElementByTag(pixelDataTagInfo.Tag)
-		if err != nil {
-			return err
+		frame := pixelDataInfo.Frames[0]
+
+		windowCenter, _ := dataset.FindElementByTag(tag.WindowCenter)
+		var windowCenterValue int
+		if _, err := fmt.Sscanf(windowCenter.Value.String(), "[%d.]", &windowCenterValue); err != nil {
+			windowCenterValue = 1
 		}
-		elementValue := element.Value.GetValue().(dicom.PixelDataInfo)
-		if len(elementValue.Frames) == 0 {
-			return fmt.Errorf("no frames found")
+
+		windowWidth, _ := dataset.FindElementByTag(tag.WindowWidth)
+		var windowWidthValue int
+		if _, err := fmt.Sscanf(windowWidth.Value.String(), "[%d.]", &windowWidthValue); err != nil {
+			windowWidthValue = 1
 		}
-		image, err := elementValue.Frames[0].GetImage()
-		if err != nil {
-			return err
+
+		nativeData := frame.NativeData.Data
+		nativeData = utils.ScalePixelData(nativeData, frame.NativeData.BitsPerSample, utils.Sigmoid, windowCenterValue, windowWidthValue)
+		nativeData = utils.NegatePixelData(nativeData, frame.NativeData.BitsPerSample)
+
+		image := image.NewGray16(image.Rect(0, 0, frame.NativeData.Cols, frame.NativeData.Rows))
+		for j := 0; j < len(frame.NativeData.Data); j++ {
+			image.SetGray16(j%frame.NativeData.Cols, j/frame.NativeData.Cols, color.Gray16{Y: uint16(frame.NativeData.Data[j][0])}) // for now, assume we're not overflowing uint16, assume gray image
 		}
+
 		buffer := new(bytes.Buffer)
 		if err := jpeg.Encode(buffer, image, nil); err != nil {
 			return err
