@@ -204,11 +204,9 @@ func writeWADORSResponse(w http.ResponseWriter, r *http.Request, paths []string)
 		if err != nil {
 			return err
 		}
-		while := bufio.NewScanner(file)
-		for while.Scan() {
-			if _, err := w.Write(while.Bytes()); err != nil {
-				return err
-			}
+		buf := bufio.NewReader(file)
+		if _, err := buf.WriteTo(w); err != nil {
+			return err
 		}
 		if err := file.Close(); err != nil {
 			return err
