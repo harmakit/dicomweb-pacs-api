@@ -91,14 +91,6 @@ func (a *API) Router() *chi.Mux {
 			r.Get("/studies/{studyUID}/series/{seriesUID}/instances/{instanceUID}/metadata", a.WADO.instance)
 		})
 
-		r.Group(func(r chi.Router) {
-			// todo rendered images are wierd. also should add support for options
-			r.Use(a.WADO.ctxRenderedRequest)
-			r.Get("/studies/{studyUID}/rendered", a.WADO.study)
-			r.Get("/studies/{studyUID}/series/{seriesUID}/rendered", a.WADO.series)
-			r.Get("/studies/{studyUID}/series/{seriesUID}/instances/{instanceUID}/rendered", a.WADO.instance)
-		})
-
 		// todo wado-uri
 	})
 

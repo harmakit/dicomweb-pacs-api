@@ -2,19 +2,16 @@ package dicomweb
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"dicom-store-api/database"
 	"dicom-store-api/fs"
 	"dicom-store-api/models"
-	"dicom-store-api/utils"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/go-pg/pg"
 	"github.com/suyashkumar/dicom"
 	"github.com/suyashkumar/dicom/pkg/tag"
-	"image/jpeg"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -26,7 +23,6 @@ type RequestType int
 const (
 	requestTypeDefault RequestType = iota
 	requestTypeMetadata
-	requestTypeRendered
 )
 
 const (
@@ -107,13 +103,6 @@ func (rs *WADOResource) ctxMetadataRequest(next http.Handler) http.Handler {
 	})
 }
 
-func (rs *WADOResource) ctxRenderedRequest(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), ctxRequestType, requestTypeRendered)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 // WADOResource implements management handler.
 type WADOResource struct {
 	DB            *pg.DB
@@ -167,20 +156,6 @@ func writeWADORSResponse(w http.ResponseWriter, r *http.Request, paths []string)
 		}
 		render.Respond(w, r, responseData)
 		return nil
-	case requestTypeRendered:
-		path := paths[0]
-		dataset, _ := dicom.ParseFile(path, nil)
-		img, err := utils.ConvertDicomToImage(dataset)
-		if err != nil {
-			return err
-		}
-		
-		buffer := new(bytes.Buffer)
-		if err := jpeg.Encode(buffer, img, nil); err != nil {
-			return err
-		}
-		w.Header().Set("Content-Type", "image/jpeg")
-		w.Write(buffer.Bytes())
 	case requestTypeDefault:
 		mw := multipart.NewWriter(w)
 		w.Header().Set("Content-Type", fmt.Sprintf("multipart/related; type=\"application/dicom\"; boundary=%s", mw.Boundary()))
