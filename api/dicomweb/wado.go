@@ -170,11 +170,19 @@ func writeWADORSResponse(w http.ResponseWriter, r *http.Request, paths []string)
 	case requestTypeRendered:
 		path := paths[0]
 		dataset, _ := dicom.ParseFile(path, nil)
-		img, err := utils.ConvertDicomToImage(dataset)
+		viewportParameters := utils.RenderImageViewportParameters{}
+		viewportParameters.ViewportHeight = 0
+		viewportParameters.ViewportHeight = 0
+		windowParameters := utils.RenderImageWindowParameters{}
+		windowParameters.WindowWidth = 255
+		windowParameters.WindowCenter = 127
+		windowParameters.Function = utils.Sigmoid
+
+		img, err := utils.RenderImage(dataset, viewportParameters, windowParameters)
 		if err != nil {
 			return err
 		}
-		
+
 		buffer := new(bytes.Buffer)
 		if err := jpeg.Encode(buffer, img, nil); err != nil {
 			return err
