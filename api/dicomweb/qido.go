@@ -79,37 +79,58 @@ type QIDOResponse []interface{}
 func newQIDOResponse(objects []models.DicomObject, rd *QIDORequest) *QIDOResponse {
 	var s = make([]interface{}, len(objects))
 	for objectIndex, object := range objects {
-		var formatted = map[string]any{}
+		var formattedDataMaps []map[string]any
 
-		reflection := reflect.TypeOf(object).Elem()
-		for fieldIndex := 0; fieldIndex < reflection.NumField(); fieldIndex++ {
-			field := reflection.Field(fieldIndex)
-			tagInfo, err := tag.FindByName(field.Tag.Get("dicom"))
-			if err != nil {
-				continue
-			}
+		formattedDataMaps = append(formattedDataMaps, formatDicomObject(object, rd.IncludedFields, rd.IncludeAllFields))
+		if _, ok := object.(*models.Series); ok {
+			formattedDataMaps = append(formattedDataMaps, formatDicomObject(object.(*models.Series).Study, rd.IncludedFields, rd.IncludeAllFields))
+		}
+		if _, ok := object.(*models.Instance); ok {
+			formattedDataMaps = append(formattedDataMaps, formatDicomObject(object.(*models.Instance).Series, rd.IncludedFields, rd.IncludeAllFields))
+			formattedDataMaps = append(formattedDataMaps, formatDicomObject(object.(*models.Instance).Series.Study, rd.IncludedFields, rd.IncludeAllFields))
+		}
 
-			_, isInIncludedFieldsMap := rd.IncludedFields[tagInfo.Tag]
-			if rd.IncludeAllFields == false && !isInIncludedFieldsMap {
-				continue
-			}
-
-			fieldKey := fmt.Sprintf("%04x%04x", tagInfo.Tag.Group, tagInfo.Tag.Element)
-
-			value, err := utils.FormatStringValueForResponse(tagInfo, reflect.ValueOf(object).Elem().Field(fieldIndex).String())
-			if err != nil {
-				panic(err)
-			}
-			formatted[fieldKey] = map[string]interface{}{
-				"vr":    tagInfo.VR,
-				"Value": value,
+		mergedMaps := map[string]any{}
+		for _, dataMap := range formattedDataMaps {
+			for k, v := range dataMap {
+				mergedMaps[k] = v
 			}
 		}
-		s[objectIndex] = formatted
+		s[objectIndex] = mergedMaps
 	}
 
 	response := QIDOResponse(s)
 	return &response
+}
+
+func formatDicomObject(object models.DicomObject, includedFields map[tag.Tag]bool, includeAllFields bool) map[string]any {
+	var formatted = map[string]any{}
+
+	reflection := reflect.TypeOf(object).Elem()
+	for fieldIndex := 0; fieldIndex < reflection.NumField(); fieldIndex++ {
+		field := reflection.Field(fieldIndex)
+		tagInfo, err := tag.FindByName(field.Tag.Get("dicom"))
+		if err != nil {
+			continue
+		}
+
+		_, isInIncludedFieldsMap := includedFields[tagInfo.Tag]
+		if includeAllFields == false && !isInIncludedFieldsMap {
+			continue
+		}
+
+		fieldKey := fmt.Sprintf("%04X%04X", tagInfo.Tag.Group, tagInfo.Tag.Element)
+
+		value, err := utils.FormatStringValueForResponse(tagInfo, reflect.ValueOf(object).Elem().Field(fieldIndex).String())
+		if err != nil {
+			panic(err)
+		}
+		formatted[fieldKey] = map[string]interface{}{
+			"vr":    tagInfo.VR,
+			"Value": value,
+		}
+	}
+	return formatted
 }
 
 type QIDORequest struct {
@@ -211,8 +232,10 @@ func (rs *QIDOResource) series(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fields := requestData.getFieldsForStoreRequest()
-	study := r.Context().Value(ctxStudy).(*models.Study)
-	fields["StudyId"] = study.ID
+	study, ok := r.Context().Value(ctxStudy).(*models.Study)
+	if ok {
+		fields["StudyId"] = study.ID
+	}
 
 	seriesList, err := rs.SeriesStore.FindBy(fields, options, nil)
 	if err != nil {
@@ -221,8 +244,8 @@ func (rs *QIDOResource) series(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dicomObjectsList := make([]models.DicomObject, len(seriesList))
-	for i, study := range seriesList {
-		dicomObjectsList[i] = study
+	for i, series := range seriesList {
+		dicomObjectsList[i] = series
 	}
 	render.Respond(w, r, newQIDOResponse(dicomObjectsList, requestData))
 }
@@ -236,8 +259,10 @@ func (rs *QIDOResource) instances(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fields := requestData.getFieldsForStoreRequest()
-	series := r.Context().Value(ctxSeries).(*models.Series)
-	fields["SeriesId"] = series.ID
+	series, ok := r.Context().Value(ctxSeries).(*models.Series)
+	if ok {
+		fields["SeriesId"] = series.ID
+	}
 
 	instanceList, err := rs.InstanceStore.FindBy(fields, options, nil)
 	if err != nil {

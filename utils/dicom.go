@@ -167,7 +167,8 @@ func getValueFromElement(element *dicom.Element) (any, error) {
 }
 
 func GetTagByNameOrCode(tagName string) (tag.Tag, error) {
-	isCode, _ := regexp.MatchString("^\\d{8}$", tagName)
+	isCode, _ := regexp.MatchString(`^[a-zA-Z0-9]+$`, tagName)
+	isCode = isCode && len(tagName) == 8
 	var tagInfo tag.Info
 	var err error
 

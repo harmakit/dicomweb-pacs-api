@@ -46,6 +46,7 @@ func (store *InstanceStore) FindBy(fields map[string]any, options *SelectQueryOp
 		}
 	}
 	query.Relation("Series")
+	query.Relation("Series.Study")
 	options.Apply(query)
 
 	err := query.Select()

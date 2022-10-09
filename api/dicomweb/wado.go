@@ -153,7 +153,7 @@ func writeWADORSResponse(w http.ResponseWriter, r *http.Request, paths []string)
 					continue
 				}
 
-				fieldKey := fmt.Sprintf("%04x%04x", tagInfo.Tag.Group, tagInfo.Tag.Element)
+				fieldKey := fmt.Sprintf("%04X%04X", tagInfo.Tag.Group, tagInfo.Tag.Element)
 
 				formatted[fieldKey] = map[string]interface{}{
 					"vr":    tagInfo.VR,

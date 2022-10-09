@@ -69,8 +69,12 @@ func (a *API) Router() *chi.Mux {
 	r.Group(func(r chi.Router) {
 		r.Use(a.QIDO.ctx)
 		r.Get("/studies", a.QIDO.studies)
+
 		r.Get("/studies/{studyUID}/series", a.QIDO.series)
+		r.Get("/series", a.QIDO.series)
+
 		r.Get("/studies/{studyUID}/series/{seriesUID}/instances", a.QIDO.instances)
+		r.Get("/instances", a.QIDO.instances)
 	})
 
 	// WADO group
