@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-pg/pg"
 	"github.com/suyashkumar/dicom"
 	"github.com/suyashkumar/dicom/pkg/tag"
@@ -23,6 +24,7 @@ type RequestType int
 const (
 	requestTypeDefault RequestType = iota
 	requestTypeMetadata
+	requestWADOURI
 )
 
 const (
@@ -99,6 +101,13 @@ func (rs *WADOResource) ctxDefaultRequest(next http.Handler) http.Handler {
 func (rs *WADOResource) ctxMetadataRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), ctxRequestType, requestTypeMetadata)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (rs *WADOResource) ctxWADOURIRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), ctxRequestType, requestWADOURI)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -189,6 +198,21 @@ func writeWADORSResponse(w http.ResponseWriter, r *http.Request, paths []string)
 				return err
 			}
 		}
+	case requestWADOURI:
+		w.Header().Set("Content-Type", "application/dicom")
+		file, err := os.Open(paths[0])
+		if err != nil {
+			return err
+		}
+		while := bufio.NewScanner(file)
+		for while.Scan() {
+			if _, err := w.Write(while.Bytes()); err != nil {
+				return err
+			}
+		}
+		if err := file.Close(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -262,6 +286,102 @@ func (rs *WADOResource) instance(w http.ResponseWriter, r *http.Request) {
 	paths = append(paths, path)
 
 	err := writeWADORSResponse(w, r, paths)
+	if err != nil {
+		render.Render(w, r, ErrInternalServerError)
+		return
+	}
+
+	return
+}
+
+type WADOURIRequest struct {
+	studyUID    string
+	seriesUID   string
+	instanceUID string
+	contentType string
+	requestType string
+}
+
+func getWADOURIRequest(r *http.Request) *WADOURIRequest {
+	data := &WADOURIRequest{
+		studyUID:    r.URL.Query().Get("studyUID"),
+		seriesUID:   r.URL.Query().Get("seriesUID"),
+		instanceUID: r.URL.Query().Get("objectUID"),
+		contentType: r.URL.Query().Get("contentType"),
+		requestType: r.URL.Query().Get("requestType"),
+	}
+
+	err := validation.ValidateStruct(data,
+		validation.Field(&data.contentType, validation.Required, validation.In("application/dicom")), // todo: implement image rendering
+		validation.Field(&data.requestType, validation.Required, validation.In("WADO")),
+		validation.Field(&data.studyUID, validation.Required),
+		validation.Field(&data.seriesUID, validation.Required),
+		validation.Field(&data.instanceUID, validation.Required),
+	)
+
+	if err != nil {
+		return nil
+	}
+
+	return data
+}
+
+func (rs *WADOResource) uri(w http.ResponseWriter, r *http.Request) {
+	requestData := getWADOURIRequest(r)
+	if requestData == nil {
+		render.Render(w, r, ErrBadRequest)
+		return
+	}
+
+	studyUIDTagInfo, _ := tag.Find((&models.Study{}).GetObjectIdFieldTag())
+	studyList, err := rs.StudyStore.FindBy(
+		map[string]any{
+			studyUIDTagInfo.Name: requestData.studyUID,
+		},
+		&database.SelectQueryOptions{Limit: 1},
+		nil,
+	)
+	if err != nil || len(studyList) != 1 {
+		render.Render(w, r, ErrNotFound)
+		return
+	}
+	study := studyList[0]
+
+	seriesUIDTagInfo, _ := tag.Find((&models.Series{}).GetObjectIdFieldTag())
+	seriesList, err := rs.SeriesStore.FindBy(
+		map[string]any{
+			seriesUIDTagInfo.Name: requestData.seriesUID,
+			"StudyId":             study.ID,
+		},
+		&database.SelectQueryOptions{Limit: 1},
+		nil,
+	)
+	if err != nil || len(seriesList) != 1 {
+		render.Render(w, r, ErrNotFound)
+		return
+	}
+	series := seriesList[0]
+
+	instanceUIDTagInfo, _ := tag.Find((&models.Instance{}).GetObjectIdFieldTag())
+	instanceList, err := rs.InstanceStore.FindBy(
+		map[string]any{
+			instanceUIDTagInfo.Name: requestData.instanceUID,
+			"SeriesId":              series.ID,
+		},
+		&database.SelectQueryOptions{Limit: 1},
+		nil,
+	)
+	if err != nil || len(instanceList) != 1 {
+		render.Render(w, r, ErrNotFound)
+		return
+	}
+	instance := instanceList[0]
+
+	var paths []string
+	path := fs.GetDicomPath(study, series, instance)
+	paths = append(paths, path)
+
+	err = writeWADORSResponse(w, r, paths)
 	if err != nil {
 		render.Render(w, r, ErrInternalServerError)
 		return

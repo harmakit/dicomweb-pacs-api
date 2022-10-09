@@ -91,7 +91,12 @@ func (a *API) Router() *chi.Mux {
 			r.Get("/studies/{studyUID}/series/{seriesUID}/instances/{instanceUID}/metadata", a.WADO.instance)
 		})
 
-		// todo wado-uri
+		r.Group(func(r chi.Router) {
+			r.Use(a.WADO.ctxWADOURIRequest)
+			r.Get("/wado-uri", a.WADO.uri)
+		})
+
+		// todo: implement image rendering
 	})
 
 	// STOW group
