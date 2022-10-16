@@ -14,9 +14,8 @@ var cfgFile string
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:   "go-base",
-	Short: "A RESTful API boilerplate",
-	Long:  `A RESTful API boilerplate with passwordless authentication.`,
+	Use:   "dicom-store-api",
+	Short: "A DicomWEB API",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//	Run: func(cmd *cobra.Command, args []string) { },
@@ -37,7 +36,7 @@ func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.go-base.yaml)")
+	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.dicom-store-api.yaml)")
 	RootCmd.PersistentFlags().Bool("db_debug", false, "log sql to console")
 	viper.BindPFlag("db_debug", RootCmd.PersistentFlags().Lookup("db_debug"))
 
@@ -58,9 +57,9 @@ func initConfig() {
 			log.Fatal(err)
 		}
 
-		// Search config in home directory with name ".go-base" (without extension).
+		// Search config in home directory with name ".dicom-store-api" (without extension).
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".go-base")
+		viper.SetConfigName(".dicom-store-api")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match

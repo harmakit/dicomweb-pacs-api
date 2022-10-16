@@ -4,8 +4,7 @@
 .idea
 
 debug
-go-base
-
+dicom-store-api
 # Binaries for programs and plugins
 *.exe
 *.dll

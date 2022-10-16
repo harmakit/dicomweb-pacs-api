@@ -5,12 +5,7 @@ import (
 	"dicom-store-api/api/dicomweb"
 	"time"
 
-	"dicom-store-api/api/admin"
-	"dicom-store-api/api/app"
-	"dicom-store-api/auth/jwt"
-	"dicom-store-api/auth/pwdless"
 	"dicom-store-api/database"
-	"dicom-store-api/email"
 	"dicom-store-api/logging"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -25,31 +20,6 @@ func New(enableCORS bool) (*chi.Mux, error) {
 	db, err := database.DBConn()
 	if err != nil {
 		logger.WithField("module", "database").Error(err)
-		return nil, err
-	}
-
-	mailer, err := email.NewMailer()
-	if err != nil {
-		logger.WithField("module", "email").Error(err)
-		return nil, err
-	}
-
-	authStore := database.NewAuthStore(db)
-	authResource, err := pwdless.NewResource(authStore, mailer)
-	if err != nil {
-		logger.WithField("module", "auth").Error(err)
-		return nil, err
-	}
-
-	adminAPI, err := admin.NewAPI(db)
-	if err != nil {
-		logger.WithField("module", "admin").Error(err)
-		return nil, err
-	}
-
-	appAPI, err := app.NewAPI(db)
-	if err != nil {
-		logger.WithField("module", "app").Error(err)
 		return nil, err
 	}
 
@@ -73,16 +43,7 @@ func New(enableCORS bool) (*chi.Mux, error) {
 		r.Use(corsConfig().Handler)
 	}
 
-	r.Mount("/auth", authResource.Router())
 	r.Group(func(r chi.Router) {
-		r.Use(authResource.TokenAuth.Verifier())
-		r.Use(jwt.Authenticator)
-		r.Mount("/admin", adminAPI.Router())
-		r.Mount("/api", appAPI.Router())
-		//r.Mount("/dicomweb", wadoAPI.Router()) // todo: uncomment to enable authentication for dicomweb
-	})
-
-	r.Group(func(r chi.Router) { // todo: remove this group to enable authentication for dicomweb
 		r.Mount("/dicomweb", wadoAPI.Router())
 	})
 

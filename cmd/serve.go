@@ -29,13 +29,6 @@ func init() {
 	viper.SetDefault("port", "3000")
 	viper.SetDefault("log_level", "debug")
 
-	viper.SetDefault("auth_login_url", "http://localhost:3000/login")
-	viper.SetDefault("auth_login_token_length", 8)
-	viper.SetDefault("auth_login_token_expiry", "8640h") // todo: revert to short-term token
-	viper.SetDefault("auth_jwt_secret", "ta4/p1*XmD1@3q_={SK4Q'+2Viii9NsEuy,IuCeq/?YeO\"l]xB4~Sb8@1@kur;$")
-	viper.SetDefault("auth_jwt_expiry", "15m")
-	viper.SetDefault("auth_jwt_refresh_expiry", "1h")
-
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
 	// serveCmd.PersistentFlags().String("foo", "", "A help for foo")
