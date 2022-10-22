@@ -16,6 +16,14 @@ import (
 	"strings"
 )
 
+type EmptyParentEntitiesListError struct{}
+
+func (e EmptyParentEntitiesListError) Error() string {
+	return "empty parent entities list"
+}
+
+var ErrEmptyParentEntitiesList = &EmptyParentEntitiesListError{}
+
 func (rs *QIDOResource) ctx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -232,6 +240,16 @@ func (rs *QIDOResource) series(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fields := requestData.getFieldsForStoreRequest()
+	fields, err := transformFieldsForObject(rs, fields, &models.Series{})
+	if err != nil {
+		if err == ErrEmptyParentEntitiesList {
+			render.Respond(w, r, newQIDOResponse([]models.DicomObject{}, requestData))
+			return
+		}
+		render.Render(w, r, ErrInternalServerError)
+		return
+	}
+
 	study, ok := r.Context().Value(ctxStudy).(*models.Study)
 	if ok {
 		fields["StudyId"] = study.ID
@@ -251,6 +269,7 @@ func (rs *QIDOResource) series(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rs *QIDOResource) instances(w http.ResponseWriter, r *http.Request) {
+	// todo вызывается ошибка http://localhost:3001/view/study/1.3.12.2.1107.5.1.4.95954.30000021122105303673200000040
 	requestData := getQIDORequest(r)
 
 	options := &database.SelectQueryOptions{
@@ -259,6 +278,16 @@ func (rs *QIDOResource) instances(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fields := requestData.getFieldsForStoreRequest()
+	fields, err := transformFieldsForObject(rs, fields, &models.Instance{})
+	if err != nil {
+		if err == ErrEmptyParentEntitiesList {
+			render.Respond(w, r, newQIDOResponse([]models.DicomObject{}, requestData))
+			return
+		}
+		render.Render(w, r, ErrInternalServerError)
+		return
+	}
+
 	series, ok := r.Context().Value(ctxSeries).(*models.Series)
 	if ok {
 		fields["SeriesId"] = series.ID
@@ -275,6 +304,68 @@ func (rs *QIDOResource) instances(w http.ResponseWriter, r *http.Request) {
 		dicomObjectsList[i] = study
 	}
 	render.Respond(w, r, newQIDOResponse(dicomObjectsList, requestData))
+}
+
+func transformFieldsForObject(rs *QIDOResource, fields map[string]any, dicomObject models.DicomObject) (map[string]any, error) {
+	_, isStudy := dicomObject.(*models.Study)
+	_, isSeries := dicomObject.(*models.Series)
+	_, isInstance := dicomObject.(*models.Instance)
+
+	if isStudy {
+		return fields, nil
+	}
+
+	if isSeries || isInstance {
+		studyFields := make(map[string]any)
+		for fieldName, fieldValue := range fields {
+			studyField := reflect.ValueOf(&models.Study{}).Elem().FieldByName(fieldName)
+			if studyField.IsValid() {
+				studyFields[fieldName] = fieldValue
+				delete(fields, fieldName)
+			}
+		}
+		if len(studyFields) > 0 {
+			studyList, err := rs.StudyStore.FindBy(studyFields, nil, nil)
+			if err != nil {
+				return nil, err
+			}
+			if len(studyList) == 0 {
+				return nil, ErrEmptyParentEntitiesList
+			}
+			studyIds := make([]int, len(studyList))
+			for i, study := range studyList {
+				studyIds[i] = study.ID
+			}
+			fields["StudyId"] = studyIds
+		}
+	}
+
+	if isInstance {
+		seriesFields := make(map[string]any)
+		for fieldName, fieldValue := range fields {
+			seriesField := reflect.ValueOf(&models.Series{}).Elem().FieldByName(fieldName)
+			if seriesField.IsValid() {
+				seriesFields[fieldName] = fieldValue
+				delete(fields, fieldName)
+			}
+		}
+		if len(seriesFields) > 0 {
+			seriesList, err := rs.SeriesStore.FindBy(seriesFields, nil, nil)
+			if err != nil {
+				return nil, err
+			}
+			if len(seriesList) == 0 {
+				return nil, ErrEmptyParentEntitiesList
+			}
+			seriesIds := make([]int, len(seriesList))
+			for i, series := range seriesList {
+				seriesIds[i] = series.ID
+			}
+			fields["SeriesId"] = seriesIds
+		}
+	}
+
+	return fields, nil
 }
 
 func (requestData *QIDORequest) getFieldsForStoreRequest() map[string]any {
