@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -36,7 +35,6 @@ func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.dicom-store-api.yaml)")
 	RootCmd.PersistentFlags().Bool("db_debug", false, "log sql to console")
 	viper.BindPFlag("db_debug", RootCmd.PersistentFlags().Lookup("db_debug"))
 
@@ -52,14 +50,14 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		// Find home directory.
-		home, err := homedir.Dir()
+		cwd, err := os.Getwd()
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		// Search config in home directory with name ".dicom-store-api" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".dicom-store-api")
+		viper.AddConfigPath(cwd)
+		viper.SetConfigName("config")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
