@@ -51,8 +51,20 @@ func GetStringValueFromElement(element *dicom.Element) (string, error) {
 	return fmt.Sprintf("%v", value), nil
 }
 
+type PatientNameValueStruct struct {
+	Alphabetic  string `json:",omitempty"`
+	Ideographic string `json:",omitempty"`
+	Phonetic    string `json:",omitempty"`
+}
+
 func FormatStringValueForResponse(tagInfo tag.Info, value string) (any, error) {
 	isSingleValue := tagInfo.VM == "1" && tagInfo.VR != "SQ"
+
+	if tagInfo.VR == "PN" {
+		return []any{&PatientNameValueStruct{
+			Alphabetic: value,
+		}}, nil
+	}
 
 	if isSingleValue {
 		return []string{value}, nil

@@ -5,6 +5,7 @@ import (
 	"dicom-store-api/fs"
 	"dicom-store-api/models"
 	"dicom-store-api/utils"
+	"encoding/json"
 	"fmt"
 	"github.com/go-chi/render"
 	"github.com/go-pg/pg"
@@ -13,6 +14,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -183,6 +185,14 @@ func (rs *STOWResource) save(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		err = updateComputedFields(rs, study, series, tx)
+
+		if err != nil {
+			tx.Rollback()
+			render.Render(w, r, ErrInternalServerError)
+			return
+		}
+
 		path := fs.GetDicomPath(study, series, instance)
 		if err = fs.Save(path, fileBytes); err != nil {
 			tx.Rollback()
@@ -200,4 +210,42 @@ func (rs *STOWResource) save(w http.ResponseWriter, r *http.Request) {
 	}
 
 	render.JSON(w, r, successfullySavedFiles)
+}
+
+func updateComputedFields(rs *STOWResource, study *models.Study, series *models.Series, tx *pg.Tx) error {
+	studyRelatedSeriesList, err := rs.SeriesStore.FindBy(map[string]any{
+		"StudyId": series.StudyId,
+	}, nil, tx)
+	if err != nil {
+		return err
+	}
+	study.NumberOfStudyRelatedSeries = strconv.Itoa(len(studyRelatedSeriesList))
+
+	modalitiesOfRelatedSeries := make([]string, 0)
+	for _, series := range studyRelatedSeriesList {
+		modalitiesOfRelatedSeries = append(modalitiesOfRelatedSeries, series.Modality)
+	}
+	modalitiesInStudy, err := json.Marshal(modalitiesOfRelatedSeries)
+	if err != nil {
+		return err
+	}
+	study.ModalitiesInStudy = string(modalitiesInStudy)
+
+	studyRelatedSeriesListIds := make([]int, 0)
+	for _, series := range studyRelatedSeriesList {
+		studyRelatedSeriesListIds = append(studyRelatedSeriesListIds, series.ID)
+	}
+
+	studyRelatedInstanceList, err := rs.InstanceStore.FindBy(map[string]any{
+		"SeriesId": studyRelatedSeriesListIds,
+	}, nil, tx)
+	if err != nil {
+		return err
+	}
+	study.NumberOfStudyRelatedInstances = strconv.Itoa(len(studyRelatedInstanceList))
+
+	if err = rs.StudyStore.Update(study, tx); err != nil {
+		return err
+	}
+	return nil
 }

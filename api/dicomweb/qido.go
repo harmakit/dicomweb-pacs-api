@@ -269,7 +269,6 @@ func (rs *QIDOResource) series(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rs *QIDOResource) instances(w http.ResponseWriter, r *http.Request) {
-	// todo вызывается ошибка http://localhost:3001/view/study/1.3.12.2.1107.5.1.4.95954.30000021122105303673200000040
 	requestData := getQIDORequest(r)
 
 	options := &database.SelectQueryOptions{

@@ -18,6 +18,7 @@ type Instance struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	SeriesId  int
 	Series    *Series `json:"series"`
+	ToolsData string  `json:"tools_data"`
 
 	SOPClassUID    string `json:"sop_class_uid" dicom:"SOPClassUID"`
 	SOPInstanceUID string `json:"sop_instance_uid" dicom:"SOPInstanceUID"`
