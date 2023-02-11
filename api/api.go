@@ -2,6 +2,7 @@
 package api
 
 import (
+	"dicom-store-api/api/app"
 	"dicom-store-api/api/dicomweb"
 	"time"
 
@@ -29,6 +30,12 @@ func New(enableCORS bool) (*chi.Mux, error) {
 		return nil, err
 	}
 
+	appAPI, err := app.NewAPI(db)
+	if err != nil {
+		logger.WithField("module", "app").Error(err)
+		return nil, err
+	}
+
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
@@ -45,6 +52,7 @@ func New(enableCORS bool) (*chi.Mux, error) {
 
 	r.Group(func(r chi.Router) {
 		r.Mount("/dicomweb", wadoAPI.Router())
+		r.Mount("/api", appAPI.Router())
 	})
 
 	return r, nil
