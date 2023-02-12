@@ -45,8 +45,6 @@ func (rs *InstanceResource) ctx(next http.Handler) http.Handler {
 	})
 }
 
-type ToolsResponse []interface{}
-
 type UpdateToolsRequest struct {
 	FreehandRoiTool []interface{}
 }

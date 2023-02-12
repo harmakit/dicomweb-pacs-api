@@ -53,6 +53,35 @@ func (store *SeriesStore) FindBy(fields map[string]any, options *SelectQueryOpti
 	return result, err
 }
 
+func (store *SeriesStore) CountBy(fields map[string]any, tx *pg.Tx) (int, error) {
+	db := store.GetOrm(tx)
+	tableName := (&models.Series{}).GetTableName()
+
+	var count int
+	query := db.Model(&models.Series{}).ColumnExpr("count(*)")
+	for fieldName, fieldValue := range fields {
+		structField := reflect.ValueOf(&models.Series{}).Elem().FieldByName(fieldName)
+		if !structField.IsValid() {
+			return 0, fmt.Errorf("invalid field name: %s", fieldName)
+		}
+		columnName := utils.ToSnakeCase(fieldName)
+
+		rt := reflect.TypeOf(fieldValue)
+		if rt.Kind() == reflect.Slice || rt.Kind() == reflect.Array {
+			var values []interface{}
+			for i := 0; i < reflect.ValueOf(fieldValue).Len(); i++ {
+				values = append(values, reflect.ValueOf(fieldValue).Index(i).Interface())
+			}
+			query.WhereIn(fmt.Sprintf("%s.%s IN (?)", tableName, columnName), values...)
+		} else {
+			query.Where(fmt.Sprintf("%s.%s = ?", tableName, columnName), fieldValue)
+		}
+	}
+
+	_, err := query.SelectAndCount(&count)
+	return count, err
+}
+
 // Get gets a series by series ID.
 func (store *SeriesStore) Get(seriesID int) (*models.Series, error) {
 	series := models.Series{ID: seriesID}

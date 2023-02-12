@@ -51,6 +51,35 @@ func (store *StudyStore) FindBy(fields map[string]any, options *SelectQueryOptio
 	return result, err
 }
 
+func (store *StudyStore) CountBy(fields map[string]any, tx *pg.Tx) (int, error) {
+	db := store.GetOrm(tx)
+	tableName := (&models.Study{}).GetTableName()
+
+	var result int
+	query := db.Model(&models.Study{}).ColumnExpr("count(*)")
+	for fieldName, fieldValue := range fields {
+		structField := reflect.ValueOf(&models.Study{}).Elem().FieldByName(fieldName)
+		if !structField.IsValid() {
+			return 0, fmt.Errorf("invalid field name: %s", fieldName)
+		}
+		columnName := utils.ToSnakeCase(fieldName)
+
+		rt := reflect.TypeOf(fieldValue)
+		if rt.Kind() == reflect.Slice || rt.Kind() == reflect.Array {
+			var values []interface{}
+			for i := 0; i < reflect.ValueOf(fieldValue).Len(); i++ {
+				values = append(values, reflect.ValueOf(fieldValue).Index(i).Interface())
+			}
+			query.WhereIn(fmt.Sprintf("%s.%s IN (?)", tableName, columnName), values...)
+		} else {
+			query.Where(fmt.Sprintf("%s.%s = ?", tableName, columnName), fieldValue)
+		}
+	}
+
+	_, err := query.SelectAndCount(&result)
+	return result, err
+}
+
 // Get gets a study by study ID.
 func (store *StudyStore) Get(studyID int) (*models.Study, error) {
 	study := models.Study{ID: studyID}
