@@ -212,8 +212,9 @@ func (rs *QIDOResource) studies(w http.ResponseWriter, r *http.Request) {
 	requestData := getQIDORequest(r)
 
 	options := &database.SelectQueryOptions{
-		Limit:  requestData.Limit,
-		Offset: requestData.Offset,
+		Limit:   requestData.Limit,
+		Offset:  requestData.Offset,
+		OrderBy: "id",
 	}
 
 	fields := requestData.getFieldsForStoreRequest()
@@ -235,8 +236,9 @@ func (rs *QIDOResource) series(w http.ResponseWriter, r *http.Request) {
 	requestData := getQIDORequest(r)
 
 	options := &database.SelectQueryOptions{
-		Limit:  requestData.Limit,
-		Offset: requestData.Offset,
+		Limit:   requestData.Limit,
+		Offset:  requestData.Offset,
+		OrderBy: "id",
 	}
 
 	fields := requestData.getFieldsForStoreRequest()
@@ -272,8 +274,9 @@ func (rs *QIDOResource) instances(w http.ResponseWriter, r *http.Request) {
 	requestData := getQIDORequest(r)
 
 	options := &database.SelectQueryOptions{
-		Limit:  requestData.Limit,
-		Offset: requestData.Offset,
+		Limit:   requestData.Limit,
+		Offset:  requestData.Offset,
+		OrderBy: "id",
 	}
 
 	fields := requestData.getFieldsForStoreRequest()
