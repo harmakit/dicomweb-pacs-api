@@ -221,10 +221,16 @@ func updateComputedFields(rs *STOWResource, study *models.Study, series *models.
 	}
 	study.NumberOfStudyRelatedSeries = strconv.Itoa(len(studyRelatedSeriesList))
 
-	modalitiesOfRelatedSeries := make([]string, 0)
+	modalitiesOfRelatedSeriesMap := make(map[string]bool)
 	for _, series := range studyRelatedSeriesList {
-		modalitiesOfRelatedSeries = append(modalitiesOfRelatedSeries, series.Modality)
+		modalitiesOfRelatedSeriesMap[series.Modality] = true
 	}
+
+	modalitiesOfRelatedSeries := make([]string, 0)
+	for modality := range modalitiesOfRelatedSeriesMap {
+		modalitiesOfRelatedSeries = append(modalitiesOfRelatedSeries, modality)
+	}
+
 	modalitiesInStudy, err := json.Marshal(modalitiesOfRelatedSeries)
 	if err != nil {
 		return err
