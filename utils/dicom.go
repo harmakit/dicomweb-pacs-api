@@ -24,9 +24,6 @@ func ExtractDicomObjectFromDataset(dataset dicom.Dataset, object models.DicomObj
 		if element == nil {
 			continue
 		}
-		if element.Value.ValueType() != 0 {
-			panic(fmt.Sprintf("field %s is not a string type", field.Name))
-		}
 
 		stringValue, err := GetStringValueFromElement(element)
 		if err != nil {
